@@ -22,9 +22,16 @@ RHO_CUTOFF = 1e-10
 
 
 def optimize_pro_model(pro_model, grid, rho):
+    # Precompute the subgrids (should be optional)
+    subgrids = [
+        grid.get_subgrid(fn.center, fn.get_cutoff_radius(fn.pars))
+        for fn in pro_model.fns
+    ]
     # Define initial guess and cost
     pars0 = np.concatenate([fn.pars for fn in pro_model.fns])
-    cost_grad = partial(ekld, grid=grid, rho=rho, pro_model=pro_model)
+    cost_grad = partial(
+        ekld, grid=grid, rho=rho, pro_model=pro_model, subgrids=subgrids
+    )
     # Optimize parameters within the bounds.
     bounds = sum([fn.bounds for fn in pro_model.fns], [])
     optresult = minimize(
@@ -58,7 +65,7 @@ class BasisFunction:
     def get_population(self):
         raise NotImplementedError
 
-    def get_cutoff_radius(self, pars):
+    def _get_cutoff_radius(self, pars):
         raise NotImplementedError
 
     def compute(self, points, pars):
@@ -84,22 +91,21 @@ class ProModel:
         return charges
 
 
-def _compute_pro_density(pars, grid, pro_model):
+def ekld(pars, grid, rho, pro_model, subgrids):
+    """Compute the Extended KL divergence and its gradient."""
+    # Compute pro-density
     pro = np.zeros_like(grid.weights)
     ipar = 0
     # print("  whole grid:", grid.size)
-    for fn in pro_model.fns:
+    for ifn, fn in enumerate(pro_model.fns):
         fnpars = pars[ipar : ipar + fn.npar]
-        subgrid = grid.get_subgrid(fn.center, fn.get_cutoff_radius(fnpars))
+        if subgrids is None:
+            subgrid = grid.get_subgrid(fn.center, fn.get_cutoff_radius(fnpars))
+        else:
+            subgrid = subgrids[ifn]
         # print("  subgrid:", subgrid.size)
         np.add.at(pro, subgrid.indices, fn.compute(subgrid.points, fnpars))
         ipar += fn.npar
-    return pro
-
-
-def ekld(pars, grid, rho, pro_model):
-    """Compute the Extended KL divergence and its gradient."""
-    pro = _compute_pro_density(pars, grid, pro_model)
     # compute potentially tricky quantities
     sick = (rho < RHO_CUTOFF) | (pro < RHO_CUTOFF)
     with np.errstate(all="ignore"):
@@ -114,9 +120,12 @@ def ekld(pars, grid, rho, pro_model):
     # Gradient
     ipar = 0
     gradient = np.zeros_like(pars)
-    for fn in pro_model.fns:
+    for ifn, fn in enumerate(pro_model.fns):
         fnpars = pars[ipar : ipar + fn.npar]
-        subgrid = grid.get_subgrid(fn.center, fn.get_cutoff_radius(fnpars))
+        if subgrids is None:
+            subgrid = grid.get_subgrid(fn.center, fn.get_cutoff_radius(fnpars))
+        else:
+            subgrid = subgrids[ifn]
         fn_derivatives = fn.compute_derivatives(subgrid.points, fnpars)
         gradient[ipar : ipar + fn.npar] = -np.einsum(
             "i,i,ji", subgrid.weights, ratio[subgrid.indices], fn_derivatives
