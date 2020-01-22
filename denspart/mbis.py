@@ -1380,16 +1380,16 @@ def compute_pro(pars, points, basis):
     return pro
 
 
-def ekld(pars, points, weights, rho, basis):
+def ekld(pars, grid, rho, basis):
     """Compute the Extended KL divergence."""
-    pro = compute_pro(pars, points, basis)
+    pro = compute_pro(pars, grid.points, basis)
     kld = jxnp.einsum(
         "i,i,i",
-        weights,
+        grid.weights,
         rho,
         jxnp.clip(jxnp.log(rho) - jxnp.log(pro), -LOGCLIP, LOGCLIP),
     )
-    constraint = jxnp.einsum("i,i", weights, rho - pro)
+    constraint = jxnp.einsum("i,i", grid.weights, rho - pro)
     return kld - constraint
 
 
@@ -1417,9 +1417,7 @@ def partition_mbis(atnums, atcoords, grid, rho):
     print(pro.min(), pro.max())
     print(np.log(rho) - np.log(pro))
     bounds = sum([fn.bounds for fn in basis], [])
-    cost = jax.jit(
-        partial(ekld, points=grid.points, weights=grid.weights, rho=rho, basis=basis)
-    )
+    cost = jax.jit(partial(ekld, grid=grid, rho=rho, basis=basis))
     grad = tonumpy(jax.jacrev(cost))
     print(cost(pars0))
     print(grad(pars0))
