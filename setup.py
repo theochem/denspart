@@ -54,5 +54,5 @@ setup(
         "Topic :: Scientific/Engineering :: Chemistry",
         "Intended Audience :: Science/Research",
     ],
-    install_requires=["numpy>=1.0", "jax>=0.1.55"],
+    install_requires=["numpy>=1.0"],
 )

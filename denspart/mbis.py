@@ -5,15 +5,12 @@ from functools import partial
 import numpy as np
 from scipy.optimize import minimize
 
-import jax
-import jax.numpy as jxnp
-
-jax.config.update("jax_enable_x64", True)
+from grid.basegrid import SubGrid
 
 np.seterr(invalid="raise", divide="raise", over="raise")
 
 
-LOGCLIP = 10
+RHO_CUTOFF = 1e-10
 
 
 initial_mbis_parameters = {
@@ -1365,32 +1362,72 @@ class ExponentialFunction:
         self.npar = len(pars0)
         self.bounds = [(0, np.inf), (0, np.inf)]
 
-    def compute(self, pars, points):
-        dists = jxnp.sqrt(((points - self.center) ** 2).sum(axis=1))
+    def get_radius(self, pars):
         population, exponent = pars
-        return population * jxnp.exp(-exponent * dists) * (exponent ** 3 / 8 / np.pi)
+        return (np.log(RHO_CUTOFF) - np.log(population)) / exponent
+
+    def compute(self, pars, points):
+        dists = np.sqrt(((points - self.center) ** 2).sum(axis=1))
+        population, exponent = pars
+        return population * np.exp(-exponent * dists) * (exponent ** 3 / 8 / np.pi)
+
+    def compute_derivatives(self, pars, points):
+        dists = np.sqrt(((points - self.center) ** 2).sum(axis=1))
+        population, exponent = pars
+        return np.array(
+            [
+                np.exp(-exponent * dists) * (exponent ** 3 / 8 / np.pi),
+                -population
+                * np.exp(-exponent * dists)
+                * (exponent ** 3 / 8 / np.pi)
+                * dists
+                + population
+                * np.exp(-exponent * dists)
+                * (3 * exponent ** 2 / 8 / np.pi),
+            ]
+        )
 
 
-def compute_pro(pars, points, basis):
-    pro = 0
+def compute_pro(pars, grid, basis):
+    pro = np.zeros_like(grid.weights)
     ipar = 0
+    print("  whole grid:", grid.size)
     for fn in basis:
-        pro += fn.compute(pars[ipar : ipar + fn.npar], points)
+        fnpars = pars[ipar : ipar + fn.npar]
+        subgrid = grid.get_subgrid(fn.center, fn.get_radius(fnpars))
+        print("  subgrid:", subgrid.size)
+        np.add.at(pro, subgrid.indices, fn.compute(fnpars, subgrid.points))
         ipar += fn.npar
     return pro
 
 
 def ekld(pars, grid, rho, basis):
-    """Compute the Extended KL divergence."""
-    pro = compute_pro(pars, grid.points, basis)
-    kld = jxnp.einsum(
-        "i,i,i",
-        grid.weights,
-        rho,
-        jxnp.clip(jxnp.log(rho) - jxnp.log(pro), -LOGCLIP, LOGCLIP),
-    )
-    constraint = jxnp.einsum("i,i", grid.weights, rho - pro)
-    return kld - constraint
+    """Compute the Extended KL divergence and its gradient."""
+    pro = compute_pro(pars, grid, basis)
+    # compute potentially tricky quantities
+    sick = (rho < RHO_CUTOFF) | (pro < RHO_CUTOFF)
+    with np.errstate(all="ignore"):
+        lnratio = np.log(rho) - np.log(pro)
+        ratio = rho / pro
+    lnratio[sick] = 0.0
+    ratio[sick] = 0.0
+    # Function value
+    kld = np.einsum("i,i,i", grid.weights, rho, lnratio)
+    constraint = np.einsum("i,i", grid.weights, rho - pro)
+    ekld = kld - constraint
+    # Gradient
+    ipar = 0
+    gradient = np.zeros_like(pars)
+    for fn in basis:
+        fnpars = pars[ipar : ipar + fn.npar]
+        subgrid = grid.get_subgrid(fn.center, fn.get_radius(fnpars))
+        basis_derivatives = fn.compute_derivatives(fnpars, subgrid.points)
+        gradient[ipar : ipar + fn.npar] = -np.einsum(
+            "i,i,ji", subgrid.weights, ratio[subgrid.indices], basis_derivatives
+        ) + np.einsum("i,ji", subgrid.weights, basis_derivatives)
+        ipar += fn.npar
+    print(ekld)
+    return ekld, gradient
 
 
 def build_basis(atnums, atcoords):
@@ -1401,28 +1438,19 @@ def build_basis(atnums, atcoords):
     return basis
 
 
-def tonumpy(fn):
-    def wrapper(*args, **kwargs):
-        result = np.array(fn(*args, **kwargs))
-        return result
-
-    return wrapper
-
-
 def partition_mbis(atnums, atcoords, grid, rho):
     basis = build_basis(atnums, atcoords)
     pars0 = np.concatenate([fn.pars0 for fn in basis])
-    pro = compute_pro(pars0, grid.points, basis)
-    print(rho.min(), rho.max())
-    print(pro.min(), pro.max())
-    print(np.log(rho) - np.log(pro))
+    pro = compute_pro(pars0, grid, basis)
+    print("rho", rho.min(), rho.max())
+    print("pro", pro.min(), pro.max())
+    mask = (rho > 0) & (pro > 0)
+    print(np.log(rho[mask]) - np.log(pro[mask]))
     bounds = sum([fn.bounds for fn in basis], [])
-    cost = jax.jit(partial(ekld, grid=grid, rho=rho, basis=basis))
-    grad = tonumpy(jax.jacrev(cost))
-    print(cost(pars0))
-    print(grad(pars0))
+    cost_grad = partial(ekld, grid=grid, rho=rho, basis=basis)
+    print(cost_grad(pars0))
     optresult = minimize(
-        tonumpy(cost), pars0, method="trust-constr", jac=grad, bounds=bounds
+        cost_grad, pars0, method="trust-constr", jac=True, bounds=bounds
     )
     pars1 = optresult.x
     charges = np.array(atnums, dtype=float)
