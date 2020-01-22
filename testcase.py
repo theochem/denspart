@@ -15,9 +15,9 @@ np.seterr(invalid="raise", divide="raise", over="raise")
 def main():
     iodata = load_one("h2o_sto3g.fchk")
     grid, rho = prepare_input(iodata)
-    results = partition(iodata.atnums, iodata.atcoords, grid, rho)
-    iodata.atffparams["charges"] = results["charges"]
-    print(results["charges"])
+    pro_model = partition(iodata.atnums, iodata.atcoords, grid, rho)
+    iodata.atffparams["charges"] = pro_model.charges
+    print(pro_model.charges)
     with open("h2o_sto3.pp", "wb") as f:
         dump(iodata, f)
 

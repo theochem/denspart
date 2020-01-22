@@ -15,60 +15,91 @@ from grid.basegrid import SubGrid
 np.seterr(invalid="raise", divide="raise", over="raise")
 
 
-__all__ = ["partition", "BasisFunction", "ekld"]
+__all__ = ["optimize_pro_model", "BasisFunction", "ProModel", "ekld"]
 
 
 RHO_CUTOFF = 1e-10
 
 
-def partition(basis, grid, rho, atnums):
-    pars0 = np.concatenate([fn.pars0 for fn in basis])
-    bounds = sum([fn.bounds for fn in basis], [])
-    cost_grad = partial(ekld, grid=grid, rho=rho, basis=basis)
+def optimize_pro_model(pro_model, grid, rho):
+    # Define initial guess and cost
+    pars0 = np.concatenate([fn.pars for fn in pro_model.fns])
+    cost_grad = partial(ekld, grid=grid, rho=rho, pro_model=pro_model)
+    # Optimize parameters within the bounds.
+    bounds = sum([fn.bounds for fn in pro_model.fns], [])
     optresult = minimize(
         cost_grad, pars0, method="trust-constr", jac=True, bounds=bounds
     )
+    # Assign the optimal parameters to the pro_model.
     pars1 = optresult.x
-    # The following is seriously ugly. it will be removed
-    charges = np.array(atnums, dtype=float)
     ipar = 0
-    for fn in basis:
-        charges[fn.iatom] -= pars1[ipar]
+    for fn in pro_model.fns:
+        fn.pars[:] = pars1[ipar : ipar + fn.npar]
         ipar += fn.npar
-    return {"charges": charges}
+    return pro_model
 
 
 class BasisFunction:
-    def __init__(self, iatom, center):
+    def __init__(self, iatom, center, pars, bounds):
+        if len(pars) != len(bounds):
+            raise ValueError(
+                "The number of parameters must equal the number of bounds."
+            )
         self.iatom = iatom
         self.center = center
+        self.pars = pars
+        self.bounds = bounds
 
-    def get_radius(self, pars):
+    @property
+    def npar(self):
+        """Number of parameters."""
+        return len(self.pars)
+
+    def get_population(self):
         raise NotImplementedError
 
-    def compute(self, pars, points):
+    def get_cutoff_radius(self, pars):
         raise NotImplementedError
 
-    def compute_derivatives(self, pars, points):
+    def compute(self, points, pars):
+        raise NotImplementedError
+
+    def compute_derivatives(self, points, pars):
         raise NotImplementedError
 
 
-def _compute_pro(pars, grid, basis):
+class ProModel:
+    def __init__(self, atnums, atcoords, fns):
+        self.atcoords = atcoords
+        self.atnums = atnums
+        self.fns = fns
+
+    @property
+    def charges(self):
+        charges = np.array(self.atnums, dtype=float)
+        ipar = 0
+        for fn in self.fns:
+            charges[fn.iatom] -= fn.get_population()
+            ipar += fn.npar
+        return charges
+
+
+def _compute_pro_density(pars, grid, pro_model):
     pro = np.zeros_like(grid.weights)
     ipar = 0
-    print("  whole grid:", grid.size)
-    for fn in basis:
+    # print("  whole grid:", grid.size)
+    for fn in pro_model.fns:
         fnpars = pars[ipar : ipar + fn.npar]
-        subgrid = grid.get_subgrid(fn.center, fn.get_radius(fnpars))
-        print("  subgrid:", subgrid.size)
-        np.add.at(pro, subgrid.indices, fn.compute(fnpars, subgrid.points))
+        subgrid = grid.get_subgrid(fn.center, fn.get_cutoff_radius(fnpars))
+        # print("  subgrid:", subgrid.size)
+        np.add.at(pro, subgrid.indices, fn.compute(subgrid.points, fnpars))
         ipar += fn.npar
     return pro
 
 
-def ekld(pars, grid, rho, basis):
+def ekld(pars, grid, rho, pro_model):
     """Compute the Extended KL divergence and its gradient."""
-    pro = _compute_pro(pars, grid, basis)
+    pro = _compute_pro_density(pars, grid, pro_model)
     # compute potentially tricky quantities
     sick = (rho < RHO_CUTOFF) | (pro < RHO_CUTOFF)
     with np.errstate(all="ignore"):
@@ -83,12 +114,12 @@ def ekld(pars, grid, rho, basis):
     # Gradient
     ipar = 0
     gradient = np.zeros_like(pars)
-    for fn in basis:
+    for fn in pro_model.fns:
         fnpars = pars[ipar : ipar + fn.npar]
-        subgrid = grid.get_subgrid(fn.center, fn.get_radius(fnpars))
-        basis_derivatives = fn.compute_derivatives(fnpars, subgrid.points)
+        subgrid = grid.get_subgrid(fn.center, fn.get_cutoff_radius(fnpars))
+        fn_derivatives = fn.compute_derivatives(subgrid.points, fnpars)
         gradient[ipar : ipar + fn.npar] = -np.einsum(
-            "i,i,ji", subgrid.weights, ratio[subgrid.indices], basis_derivatives
-        ) + np.einsum("i,ji", subgrid.weights, basis_derivatives)
+            "i,i,ji", subgrid.weights, ratio[subgrid.indices], fn_derivatives
+        ) + np.einsum("i,ji", subgrid.weights, fn_derivatives)
         ipar += fn.npar
     return ekld, gradient

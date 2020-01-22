@@ -1,7 +1,12 @@
 """Bare-bones MBIS implementation."""
 
 
-from .variational_hirshfeld import BasisFunction, partition as partition_vh, RHO_CUTOFF
+from .variational_hirshfeld import (
+    BasisFunction,
+    ProModel,
+    optimize_pro_model,
+    RHO_CUTOFF,
+)
 
 import numpy as np
 
@@ -25,38 +30,35 @@ def partition(atnums, atcoords, grid, rho):
 
     Returns
     -------
-    results
-        Not document yet because this will definitely change.
+    pro_model
+        The optimized pro-density model.
 
     """
-    basis = build_basis(atnums, atcoords)
-    return partition_vh(basis, grid, rho, atnums)
+    pro_model = build_initial_pro_model(atnums, atcoords)
+    return optimize_pro_model(pro_model, grid, rho)
 
 
 class ExponentialFunction(BasisFunction):
-    """Quick hack basis function
+    """Exponential basis function for the MBIS pro density."""
 
-    By convention, the first parameter is the population.
-    """
+    def __init__(self, iatom, center, pars):
+        if len(pars) != 2 and not (pars >= 0).all():
+            raise TypeError("Expecting two positive parameters.")
+        super().__init__(iatom, center, pars, [(0, np.inf), (0, np.inf)])
 
-    def __init__(self, iatom, center, pars0):
-        super().__init__(iatom, center)
-        if len(pars0) != 2:
-            raise TypeError()
-        self.pars0 = pars0
-        self.npar = len(pars0)
-        self.bounds = [(0, np.inf), (0, np.inf)]
+    def get_population(self):
+        return self.pars[0]
 
-    def get_radius(self, pars):
+    def get_cutoff_radius(self, pars):
         population, exponent = pars
         return (np.log(RHO_CUTOFF) - np.log(population)) / exponent
 
-    def compute(self, pars, points):
+    def compute(self, points, pars):
         dists = np.sqrt(((points - self.center) ** 2).sum(axis=1))
         population, exponent = pars
         return population * np.exp(-exponent * dists) * (exponent ** 3 / 8 / np.pi)
 
-    def compute_derivatives(self, pars, points):
+    def compute_derivatives(self, points, pars):
         dists = np.sqrt(((points - self.center) ** 2).sum(axis=1))
         population, exponent = pars
         return np.array(
@@ -73,12 +75,12 @@ class ExponentialFunction(BasisFunction):
         )
 
 
-def build_basis(atnums, atcoords):
-    basis = []
+def build_initial_pro_model(atnums, atcoords):
+    fns = []
     for iatom, (atnum, atcoord) in enumerate(zip(atnums, atcoords)):
         for population, exponent in INITIAL_MBIS_PARAMETERS[atnum]:
-            basis.append(ExponentialFunction(iatom, atcoord, [population, exponent]))
-    return basis
+            fns.append(ExponentialFunction(iatom, atcoord, [population, exponent]))
+    return ProModel(atnums, atcoords, fns)
 
 
 INITIAL_MBIS_PARAMETERS = {
