@@ -1,19 +1,87 @@
 """Bare-bones MBIS implementation."""
 
-from functools import partial
+
+from .variational_hirshfeld import BasisFunction, partition as partition_vh, RHO_CUTOFF
 
 import numpy as np
-from scipy.optimize import minimize
-
-from grid.basegrid import SubGrid
-
-np.seterr(invalid="raise", divide="raise", over="raise")
 
 
-RHO_CUTOFF = 1e-10
+__all__ = ["partition"]
 
 
-initial_mbis_parameters = {
+def partition(atnums, atcoords, grid, rho):
+    """Perform a basic MBIS partitioning.
+
+    Parameters
+    ----------
+    atnums
+        Atomic numbers
+    atcoords
+        Atomic coordinates
+    grid
+        A molecular integration grid, with support for subgrids.
+    rho
+        The electron density on the grid
+
+    Returns
+    -------
+    results
+        Not document yet because this will definitely change.
+
+    """
+    basis = build_basis(atnums, atcoords)
+    return partition_vh(basis, grid, rho, atnums)
+
+
+class ExponentialFunction(BasisFunction):
+    """Quick hack basis function
+
+    By convention, the first parameter is the population.
+    """
+
+    def __init__(self, iatom, center, pars0):
+        super().__init__(iatom, center)
+        if len(pars0) != 2:
+            raise TypeError()
+        self.pars0 = pars0
+        self.npar = len(pars0)
+        self.bounds = [(0, np.inf), (0, np.inf)]
+
+    def get_radius(self, pars):
+        population, exponent = pars
+        return (np.log(RHO_CUTOFF) - np.log(population)) / exponent
+
+    def compute(self, pars, points):
+        dists = np.sqrt(((points - self.center) ** 2).sum(axis=1))
+        population, exponent = pars
+        return population * np.exp(-exponent * dists) * (exponent ** 3 / 8 / np.pi)
+
+    def compute_derivatives(self, pars, points):
+        dists = np.sqrt(((points - self.center) ** 2).sum(axis=1))
+        population, exponent = pars
+        return np.array(
+            [
+                np.exp(-exponent * dists) * (exponent ** 3 / 8 / np.pi),
+                -population
+                * np.exp(-exponent * dists)
+                * (exponent ** 3 / 8 / np.pi)
+                * dists
+                + population
+                * np.exp(-exponent * dists)
+                * (3 * exponent ** 2 / 8 / np.pi),
+            ]
+        )
+
+
+def build_basis(atnums, atcoords):
+    basis = []
+    for iatom, (atnum, atcoord) in enumerate(zip(atnums, atcoords)):
+        for population, exponent in INITIAL_MBIS_PARAMETERS[atnum]:
+            basis.append(ExponentialFunction(iatom, atcoord, [population, exponent]))
+    return basis
+
+
+INITIAL_MBIS_PARAMETERS = {
     # niter = 2
     # kld/n = 0.00236
     # n     = 1.00000
@@ -1345,118 +1413,3 @@ initial_mbis_parameters = {
         (9.03736, 1.42977),
     ],
 }
-
-
-class ExponentialFunction:
-    """Quick hack basis function
-
-    By convention, the first parameter is the population.
-    """
-
-    def __init__(self, iatom, center, pars0):
-        if len(pars0) != 2:
-            raise TypeError()
-        self.iatom = iatom
-        self.center = center
-        self.pars0 = pars0
-        self.npar = len(pars0)
-        self.bounds = [(0, np.inf), (0, np.inf)]
-
-    def get_radius(self, pars):
-        population, exponent = pars
-        return (np.log(RHO_CUTOFF) - np.log(population)) / exponent
-
-    def compute(self, pars, points):
-        dists = np.sqrt(((points - self.center) ** 2).sum(axis=1))
-        population, exponent = pars
-        return population * np.exp(-exponent * dists) * (exponent ** 3 / 8 / np.pi)
-
-    def compute_derivatives(self, pars, points):
-        dists = np.sqrt(((points - self.center) ** 2).sum(axis=1))
-        population, exponent = pars
-        return np.array(
-            [
-                np.exp(-exponent * dists) * (exponent ** 3 / 8 / np.pi),
-                -population
-                * np.exp(-exponent * dists)
-                * (exponent ** 3 / 8 / np.pi)
-                * dists
-                + population
-                * np.exp(-exponent * dists)
-                * (3 * exponent ** 2 / 8 / np.pi),
-            ]
-        )
-
-
-def compute_pro(pars, grid, basis):
-    pro = np.zeros_like(grid.weights)
-    ipar = 0
-    print("  whole grid:", grid.size)
-    for fn in basis:
-        fnpars = pars[ipar : ipar + fn.npar]
-        subgrid = grid.get_subgrid(fn.center, fn.get_radius(fnpars))
-        print("  subgrid:", subgrid.size)
-        np.add.at(pro, subgrid.indices, fn.compute(fnpars, subgrid.points))
-        ipar += fn.npar
-    return pro
-
-
-def ekld(pars, grid, rho, basis):
-    """Compute the Extended KL divergence and its gradient."""
-    pro = compute_pro(pars, grid, basis)
-    # compute potentially tricky quantities
-    sick = (rho < RHO_CUTOFF) | (pro < RHO_CUTOFF)
-    with np.errstate(all="ignore"):
-        lnratio = np.log(rho) - np.log(pro)
-        ratio = rho / pro
-    lnratio[sick] = 0.0
-    ratio[sick] = 0.0
-    # Function value
-    kld = np.einsum("i,i,i", grid.weights, rho, lnratio)
-    constraint = np.einsum("i,i", grid.weights, rho - pro)
-    ekld = kld - constraint
-    # Gradient
-    ipar = 0
-    gradient = np.zeros_like(pars)
-    for fn in basis:
-        fnpars = pars[ipar : ipar + fn.npar]
-        subgrid = grid.get_subgrid(fn.center, fn.get_radius(fnpars))
-        basis_derivatives = fn.compute_derivatives(fnpars, subgrid.points)
-        gradient[ipar : ipar + fn.npar] = -np.einsum(
-            "i,i,ji", subgrid.weights, ratio[subgrid.indices], basis_derivatives
-        ) + np.einsum("i,ji", subgrid.weights, basis_derivatives)
-        ipar += fn.npar
-    print(ekld)
-    return ekld, gradient
-
-
-def build_basis(atnums, atcoords):
-    basis = []
-    for iatom, (atnum, atcoord) in enumerate(zip(atnums, atcoords)):
-        for population, exponent in initial_mbis_parameters[atnum]:
-            basis.append(ExponentialFunction(iatom, atcoord, [population, exponent]))
-    return basis
-
-
-def partition_mbis(atnums, atcoords, grid, rho):
-    basis = build_basis(atnums, atcoords)
-    pars0 = np.concatenate([fn.pars0 for fn in basis])
-    pro = compute_pro(pars0, grid, basis)
-    print("rho", rho.min(), rho.max())
-    print("pro", pro.min(), pro.max())
-    mask = (rho > 0) & (pro > 0)
-    print(np.log(rho[mask]) - np.log(pro[mask]))
-    bounds = sum([fn.bounds for fn in basis], [])
-    cost_grad = partial(ekld, grid=grid, rho=rho, basis=basis)
-    print(cost_grad(pars0))
-    optresult = minimize(
-        cost_grad, pars0, method="trust-constr", jac=True, bounds=bounds
-    )
-    pars1 = optresult.x
-    charges = np.array(atnums, dtype=float)
-    ipar = 0
-    for fn in basis:
-        charges[fn.iatom] -= pars1[ipar]
-        ipar += fn.npar
-    print("charges", charges)
-    return {"charges": charges}
