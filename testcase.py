@@ -14,14 +14,22 @@ np.seterr(invalid="raise", divide="raise", over="raise")
 
 
 def main():
-    iodata = load_one("h2o_sto3g.fchk")
+    # fn_wfn = "h2o_sto3g.fchk"
+    fn_wfn = "orca.molden.input"
+    iodata = load_one(fn_wfn)
+    print("Computing density on the grid")
     grid, rho = prepare_input(iodata)
+    print("MBIS partitioning")
     pro_model = partition(iodata.atnums, iodata.atcoords, grid, rho)
+    print("Properties")
     iodata.atffparams["charges"] = pro_model.charges
     iodata.atffparams["rcubed"] = compute_rcubed(pro_model, grid, rho)
+    print("Charges:")
     print(pro_model.charges)
+    print("Total charge:", pro_model.charges.sum())
+    print("R^3 moments:")
     print(iodata.atffparams["rcubed"])
-    with open("h2o_sto3.pp", "wb") as f:
+    with open(fn_wfn + ".pp", "wb") as f:
         dump(iodata, f)
 
 

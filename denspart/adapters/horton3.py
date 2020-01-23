@@ -36,7 +36,8 @@ def prepare_input(iodata):
     Parameters
     ----------
     iodata
-        An instance with IOData containing the necessary 
+        An instance with IOData containing the necessary data to compute the
+        electron density on the grid.
 
     Returns
     -------
@@ -48,6 +49,14 @@ def prepare_input(iodata):
     """
     grid = _setup_grid(iodata.atnums, iodata.atcoords)
     one_rdm = iodata.one_rdms.get("post_scf", iodata.one_rdms.get("scf"))
+    if one_rdm is None:
+        if iodata.mo is None:
+            raise ValueError(
+                "The input file lacks wavefunction data with which "
+                "the density can be computed."
+            )
+        coeffs, occs = iodata.mo.coeffs, iodata.mo.occs
+        one_rdm = np.dot(coeffs * occs, coeffs.T)
     rho = _compute_density(iodata, one_rdm, grid.points)
     return grid, rho
 
