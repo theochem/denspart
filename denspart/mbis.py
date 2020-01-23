@@ -51,7 +51,7 @@ class ExponentialFunction(BasisFunction):
 
     def get_cutoff_radius(self, pars):
         population, exponent = pars
-        return (np.log(RHO_CUTOFF) - np.log(population)) / exponent
+        return (np.log(population) - np.log(RHO_CUTOFF)) / exponent
 
     def compute(self, points, pars):
         dists = np.sqrt(((points - self.center) ** 2).sum(axis=1))

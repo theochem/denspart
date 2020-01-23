@@ -82,6 +82,10 @@ class ProModel:
         self.fns = fns
 
     @property
+    def natom(self):
+        return len(self.atnums)
+
+    @property
     def charges(self):
         charges = np.array(self.atnums, dtype=float)
         ipar = 0
@@ -90,22 +94,43 @@ class ProModel:
             ipar += fn.npar
         return charges
 
+    def compute_density(self, grid, pars=None, subgrids=None):
+        # Compute pro-density
+        pro = np.zeros_like(grid.weights)
+        ipar = 0
+        # print("  whole grid:", grid.size)
+        for ifn, fn in enumerate(self.fns):
+            if pars is None:
+                fnpars = fn.pars
+            else:
+                fnpars = pars[ipar : ipar + fn.npar]
+            if subgrids is None:
+                subgrid = grid.get_subgrid(fn.center, fn.get_cutoff_radius(fnpars))
+            else:
+                subgrid = subgrids[ifn]
+            # print("  subgrid:", subgrid.size)
+            np.add.at(pro, subgrid.indices, fn.compute(subgrid.points, fnpars))
+            ipar += fn.npar
+        return pro
+
+    def compute_proatom(self, iatom, grid, pars=None):
+        # Compute pro-density
+        pro = np.zeros_like(grid.weights)
+        ipar = 0
+        for ifn, fn in enumerate(self.fns):
+            if pars is None:
+                fnpars = fn.pars
+            else:
+                fnpars = pars[ipar : ipar + fn.npar]
+            if fn.iatom == iatom:
+                pro += fn.compute(grid.points, fnpars)
+            ipar += fn.npar
+        return pro
+
 
 def ekld(pars, grid, rho, pro_model, subgrids):
     """Compute the Extended KL divergence and its gradient."""
-    # Compute pro-density
-    pro = np.zeros_like(grid.weights)
-    ipar = 0
-    # print("  whole grid:", grid.size)
-    for ifn, fn in enumerate(pro_model.fns):
-        fnpars = pars[ipar : ipar + fn.npar]
-        if subgrids is None:
-            subgrid = grid.get_subgrid(fn.center, fn.get_cutoff_radius(fnpars))
-        else:
-            subgrid = subgrids[ifn]
-        # print("  subgrid:", subgrid.size)
-        np.add.at(pro, subgrid.indices, fn.compute(subgrid.points, fnpars))
-        ipar += fn.npar
+    pro = pro_model.compute_density(grid, pars, subgrids)
     # compute potentially tricky quantities
     sick = (rho < RHO_CUTOFF) | (pro < RHO_CUTOFF)
     with np.errstate(all="ignore"):
