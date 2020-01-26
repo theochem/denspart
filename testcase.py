@@ -19,6 +19,8 @@ def main():
     iodata = load_one(fn_wfn)
     print("Computing density on the grid")
     grid, rho = prepare_input(iodata)
+    print("Sanity checks")
+    print("Integral of rho:", grid.integrate(rho))
     print("MBIS partitioning")
     pro_model = partition(iodata.atnums, iodata.atcoords, grid, rho)
     print("Properties")

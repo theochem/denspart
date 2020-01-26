@@ -23,20 +23,22 @@ RHO_CUTOFF = 1e-10
 
 def optimize_pro_model(pro_model, grid, rho):
     # Precompute the subgrids (should be optional)
+    print("Building subgrids")
     subgrids = [
         grid.get_subgrid(fn.center, fn.get_cutoff_radius(fn.pars))
         for fn in pro_model.fns
     ]
     # Define initial guess and cost
+    print("Optimization")
     pars0 = np.concatenate([fn.pars for fn in pro_model.fns])
     cost_grad = partial(
         ekld, grid=grid, rho=rho, pro_model=pro_model, subgrids=subgrids
     )
     # Optimize parameters within the bounds.
     bounds = sum([fn.bounds for fn in pro_model.fns], [])
-    optresult = minimize(
-        cost_grad, pars0, method="trust-constr", jac=True, bounds=bounds
-    )
+    optresult = minimize(cost_grad, pars0, method="l-bfgs-b", jac=True, bounds=bounds,)
+    # TODO: add check for convergence issues. An error should be raised if
+    # the convergence fails.
     # Assign the optimal parameters to the pro_model.
     pars1 = optresult.x
     ipar = 0
@@ -62,8 +64,11 @@ class BasisFunction:
         """Number of parameters."""
         return len(self.pars)
 
-    def get_population(self):
-        raise NotImplementedError
+    def compute_population(self, pars):
+        return pars[0]
+
+    def compute_population_derivatives(self, pars):
+        return np.array([1.0, 0.0])
 
     def _get_cutoff_radius(self, pars):
         raise NotImplementedError
@@ -86,13 +91,29 @@ class ProModel:
         return len(self.atnums)
 
     @property
-    def charges(self):
+    def charges(self, pars=None):
         charges = np.array(self.atnums, dtype=float)
         ipar = 0
         for fn in self.fns:
-            charges[fn.iatom] -= fn.get_population()
+            if pars is None:
+                fnpars = fn.pars
+            else:
+                fnpars = pars[ipar : ipar + fn.npar]
+            charges[fn.iatom] -= fn.compute_population(fnpars)
             ipar += fn.npar
         return charges
+
+    def compute_population(self, pars=None):
+        ipar = 0
+        result = 0.0
+        for ifn, fn in enumerate(self.fns):
+            if pars is None:
+                fnpars = fn.pars
+            else:
+                fnpars = pars[ipar : ipar + fn.npar]
+            result += fn.compute_population(fnpars)
+            ipar += fn.npar
+        return result
 
     def compute_density(self, grid, pars=None, subgrids=None):
         # Compute pro-density
@@ -140,7 +161,9 @@ def ekld(pars, grid, rho, pro_model, subgrids):
     ratio[sick] = 0.0
     # Function value
     kld = np.einsum("i,i,i", grid.weights, rho, lnratio)
-    constraint = np.einsum("i,i", grid.weights, rho - pro)
+    propop = pro_model.compute_population(pars)
+    # TODO: compute integral of rho only once
+    constraint = np.einsum("i,i", grid.weights, rho) - propop
     ekld = kld - constraint
     # Gradient
     ipar = 0
@@ -154,6 +177,11 @@ def ekld(pars, grid, rho, pro_model, subgrids):
         fn_derivatives = fn.compute_derivatives(subgrid.points, fnpars)
         gradient[ipar : ipar + fn.npar] = -np.einsum(
             "i,i,ji", subgrid.weights, ratio[subgrid.indices], fn_derivatives
-        ) + np.einsum("i,ji", subgrid.weights, fn_derivatives)
+        ) + fn.compute_population_derivatives(fnpars)
         ipar += fn.npar
+    print(
+        "{:12.7f} {:12.7f} {:12.7f} {:12.7f}".format(
+            ekld, kld, -constraint, np.linalg.norm(gradient)
+        )
+    )
     return ekld, gradient

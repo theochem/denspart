@@ -1,7 +1,7 @@
 """Bare-bones MBIS implementation."""
 
 
-from .variational_hirshfeld import (
+from .vh import (
     BasisFunction,
     ProModel,
     optimize_pro_model,
@@ -35,6 +35,7 @@ def partition(atnums, atcoords, grid, rho):
 
     """
     pro_model = build_initial_pro_model(atnums, atcoords)
+    # return pro_model
     return optimize_pro_model(pro_model, grid, rho)
 
 
@@ -44,10 +45,13 @@ class ExponentialFunction(BasisFunction):
     def __init__(self, iatom, center, pars):
         if len(pars) != 2 and not (pars >= 0).all():
             raise TypeError("Expecting two positive parameters.")
-        super().__init__(iatom, center, pars, [(0, np.inf), (0, np.inf)])
+        super().__init__(iatom, center, pars, [(0.1, 1e2), (0.1, 1e3)])
 
-    def get_population(self):
-        return self.pars[0]
+    def compute_population(self, pars):
+        return pars[0]
+
+    def compute_population_derivatives(self, pars):
+        return np.array([1.0, 0.0])
 
     def get_cutoff_radius(self, pars):
         population, exponent = pars
@@ -61,17 +65,9 @@ class ExponentialFunction(BasisFunction):
     def compute_derivatives(self, points, pars):
         dists = np.sqrt(((points - self.center) ** 2).sum(axis=1))
         population, exponent = pars
+        factor = np.exp(-exponent * dists) * (exponent ** 2 / 8 / np.pi)
         return np.array(
-            [
-                np.exp(-exponent * dists) * (exponent ** 3 / 8 / np.pi),
-                -population
-                * np.exp(-exponent * dists)
-                * (exponent ** 3 / 8 / np.pi)
-                * dists
-                + population
-                * np.exp(-exponent * dists)
-                * (3 * exponent ** 2 / 8 / np.pi),
-            ]
+            [factor * exponent, population * factor * (3 - dists * exponent)]
         )
 
 
