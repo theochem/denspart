@@ -23,11 +23,14 @@ RHO_CUTOFF = 1e-10
 
 def optimize_pro_model(pro_model, grid, rho):
     # Precompute the subgrids (should be optional)
-    print("Building subgrids")
-    subgrids = [
-        grid.get_subgrid(fn.center, fn.get_cutoff_radius(fn.pars))
-        for fn in pro_model.fns
-    ]
+    if True:
+        print("Building subgrids")
+        subgrids = [
+            grid.get_subgrid(fn.center, fn.get_cutoff_radius(fn.pars))
+            for fn in pro_model.fns
+        ]
+    else:
+        subgrids = None
     # Define initial guess and cost
     print("Optimization")
     pars0 = np.concatenate([fn.pars for fn in pro_model.fns])
@@ -36,7 +39,7 @@ def optimize_pro_model(pro_model, grid, rho):
     )
     # Optimize parameters within the bounds.
     bounds = sum([fn.bounds for fn in pro_model.fns], [])
-    optresult = minimize(cost_grad, pars0, method="l-bfgs-b", jac=True, bounds=bounds,)
+    optresult = minimize(cost_grad, pars0, method="l-bfgs-b", jac=True, bounds=bounds, options={"maxiter": 10})
     # TODO: add check for convergence issues. An error should be raised if
     # the convergence fails.
     # Assign the optimal parameters to the pro_model.
