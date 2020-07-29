@@ -31,7 +31,6 @@ filenames = [
     "ethanol.mkl",
     "F.molden",
     "h2_ccpvqz.wfn",
-    "h2o_error.wfx",
     "h2o.molden.input",
     "h2o_sto3g_decontracted.wfn",
     "h2o_sto3g.fchk",

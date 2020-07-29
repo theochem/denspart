@@ -78,12 +78,19 @@ def _setup_grid(atnums, atcoords):
         grid.basegrid.Grid.
 
     """
-    oned = GaussChebyshev(100)
-    with np.errstate(all="ignore"):
-        rgrid = BeckeTF(1e-4, 1.5).transform_1d_grid(oned)
-        grid = MolGrid.horton_molgrid(atcoords, atnums, rgrid, 110, BeckeWeights())
+    becke = BeckeWeights(order=3)
+    # Fix for missing radii.
+    becke._radii[2] = 0.5
+    becke._radii[10] = 1.0
+    becke._radii[18] = 2.0
+    becke._radii[36] = 2.5
+    becke._radii[54] = 3.5
+    oned = GaussChebyshev(150)
+    rgrid = BeckeTF(1e-4, 1.5).transform_1d_grid(oned)
+    grid = MolGrid.horton_molgrid(atcoords, atnums, rgrid, 194, becke)
     assert np.isfinite(grid.points).all()
     assert np.isfinite(grid.weights).all()
+    assert (grid.weights >= 0).all()
     return grid
 
 
@@ -105,7 +112,8 @@ def _compute_density(iodata, one_rdm, points):
         The electron density on the grid points.
 
     """
-    basis = from_iodata(iodata)
-    rho = evaluate_density(one_rdm, basis, points)
+    basis, coord_types = from_iodata(iodata)
+    print(coord_types)
+    rho = evaluate_density(one_rdm, basis, points, coord_type=coord_types)
     assert (rho >= 0).all()
     return rho
