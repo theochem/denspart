@@ -28,6 +28,8 @@ def optimize_pro_model(pro_model, grid, rho):
         localgrids = None
     # Define initial guess and cost
     print("Optimization")
+    print("        elkd          kld   constraint    grad.norm")
+    print(" -----------  -----------  -----------  -----------")
     with np.errstate(all="raise"):
         # The errstate is changed to detect potential nasty numerical issues.
         pars0 = np.concatenate([fn.pars for fn in pro_model.fns])
@@ -42,10 +44,12 @@ def optimize_pro_model(pro_model, grid, rho):
         method="l-bfgs-b",
         jac=True,
         bounds=bounds,
-        options={"maxiter": 10},
     )
-    # TODO: add check for convergence issues. An error should be raised if
-    # the convergence fails.
+    print(" -----------  -----------  -----------  -----------")
+    # Check for convergence.
+    print("Optimizer message: \"{}\"".format(optresult.message.decode("utf-8")))
+    if not optresult.success:
+        raise RuntimeError("Convergence failure.")
     # Assign the optimal parameters to the pro_model.
     pars1 = optresult.x
     ipar = 0
