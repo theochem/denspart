@@ -5,7 +5,14 @@ grid, which should be revised in future. For now, this is something that is
 just supposed to just work. The code is not tuned for precision nor for
 efficiency.
 
-This module is far from polished and is currently only used for prototyping.
+This module is far from polished and is currently only used for prototyping:
+
+- The integration grid is not final. It may have precision issues and it is not
+  pruned. Furthermore, all atoms are given the same atomic grid, which is far
+  from optimal and the Becke partitioning is used, which can be improved upon.
+
+- Only the spin-summed density is computed, using the post-hf 1RDM if it is
+  present. The spin-difference density is ignored.
 
 """
 
@@ -28,20 +35,18 @@ from grid.rtransform import BeckeTF
 __all__ = ["prepare_input"]
 
 
-def prepare_input(iodata):
+def prepare_input(iodata, nrad, nang):
     """Prepare input for denspart with HORTON3 modules.
-
-    XXX **WARNING** XXX: This function is far from final: the integration grid
-    as not optimized yet!!
-
-    XXX **WARNING** XXX: This function takes the spin-summed density, using the
-    post-hf one if it is present. The spin-difference density is ignored.
 
     Parameters
     ----------
     iodata
         An instance with IOData containing the necessary data to compute the
         electron density on the grid.
+    nrad
+        Number of radial grid points.
+    nang
+        Number of angular grid points.
 
     Returns
     -------
@@ -51,7 +56,7 @@ def prepare_input(iodata):
         The electron density on the grid.
 
     """
-    grid = _setup_grid(iodata.atnums, iodata.atcoords)
+    grid = _setup_grid(iodata.atnums, iodata.atcoords, nrad, nang)
     one_rdm = iodata.one_rdms.get("post_scf", iodata.one_rdms.get("scf"))
     if one_rdm is None:
         if iodata.mo is None:
@@ -65,7 +70,7 @@ def prepare_input(iodata):
     return grid, rho
 
 
-def _setup_grid(atnums, atcoords):
+def _setup_grid(atnums, atcoords, nrad, nang):
     """Set up a simple molecular integration grid for a given molecular geometry.
 
     Parameters
@@ -89,9 +94,9 @@ def _setup_grid(atnums, atcoords):
     becke._radii[18] = 2.0
     becke._radii[36] = 2.5
     becke._radii[54] = 3.5
-    oned = GaussChebyshev(150)
+    oned = GaussChebyshev(nrad)
     rgrid = BeckeTF(1e-4, 1.5).transform_1d_grid(oned)
-    grid = MolGrid.horton_molgrid(atcoords, atnums, rgrid, 194, becke)
+    grid = MolGrid.horton_molgrid(atcoords, atnums, rgrid, nang, becke)
     assert np.isfinite(grid.points).all()
     assert np.isfinite(grid.weights).all()
     assert (grid.weights >= 0).all()
@@ -126,7 +131,7 @@ def main():
     """Command-line interface."""
     args = parse_args()
     iodata = load_one(args.fn_wfn)
-    grid, rho = prepare_input(iodata)
+    grid, rho = prepare_input(iodata, args.nrad, args.nang)
     np.savez(
         args.fn_rho,
         **{
@@ -153,5 +158,19 @@ def parse_args():
     parser.add_argument(
         "fn_rho",
         help="The NPZ file in which the grid and the " "density will be stored.",
+    )
+    parser.add_argument(
+        "-r",
+        "--nrad",
+        type=int,
+        default=150,
+        help="Number of radial grid points. [default=%(default)s]",
+    )
+    parser.add_argument(
+        "-a",
+        "--nang",
+        type=int,
+        default=194,
+        help="Number of angular grid points. [default=%(default)s]",
     )
     return parser.parse_args()
