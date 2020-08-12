@@ -1,3 +1,22 @@
+#!/usr/bin/env python3
+# DensPart performs Atoms-in-molecules density partitioning.
+# Copyright (C) 2011-2020 The DensPart Development Team
+#
+# This file is part of DensPart.
+#
+# DensPart is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 3
+# of the License, or (at your option) any later version.
+#
+# DensPart is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, see <http://www.gnu.org/licenses/>
+# --
 """Prepare inputs for denspart with HORTON3 modules.
 
 This implementation makes some ad hoc coices on the molecular integration
@@ -148,11 +167,9 @@ def main():
 
 def parse_args():
     """Parse command-line arguments."""
-    DESCRIPTION = """\
-    Setup a default integration grid and compute the density with HORTON3.
-    """
+    description = "Setup a default integration grid and compute the density with HORTON3."
     parser = argparse.ArgumentParser(
-        prog="denspart-rho-horton3", description=DESCRIPTION
+        prog="denspart-rho-horton3", description=description
     )
     parser.add_argument("fn_wfn", help="The wavefunction file.")
     parser.add_argument(

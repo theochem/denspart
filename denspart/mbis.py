@@ -1,13 +1,31 @@
-"""Bare-bones MBIS implementation."""
+# DensPart performs Atoms-in-molecules density partitioning.
+# Copyright (C) 2011-2020 The DensPart Development Team
+#
+# This file is part of DensPart.
+#
+# DensPart is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 3
+# of the License, or (at your option) any later version.
+#
+# DensPart is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, see <http://www.gnu.org/licenses/>
+# --
+"""Minimal Basis Iterative Stockholder."""
 
+
+import numpy as np
 
 from .vh import (
     BasisFunction,
     ProModel,
     optimize_pro_model,
 )
-
-import numpy as np
 
 
 __all__ = ["partition"]
@@ -65,9 +83,8 @@ class ExponentialFunction(BasisFunction):
     def get_cutoff_radius(self, rho_cutoff):
         if rho_cutoff <= 0.0:
             return np.inf
-        else:
-            population, exponent = self.pars
-            return (np.log(population) - np.log(rho_cutoff)) / exponent
+        population, exponent = self.pars
+        return (np.log(population) - np.log(rho_cutoff)) / exponent
 
     def compute(self, points):
         dists = np.sqrt(((points - self.center) ** 2).sum(axis=1))

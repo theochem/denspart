@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # DensPart performs Atoms-in-molecules density partitioning.
-# Copyright (C) 2011-2019 The DensPart Development Team
+# Copyright (C) 2011-2020 The DensPart Development Team
 #
 # This file is part of DensPart.
 #
@@ -23,8 +23,6 @@ Directly calling this script is only needed by DensPart developers in special
 circumstances. End users are recommended to install DensPart with pip or conda.
 """
 
-
-import os
 
 from setuptools import setup
 

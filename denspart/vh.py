@@ -1,3 +1,21 @@
+# DensPart performs Atoms-in-molecules density partitioning.
+# Copyright (C) 2011-2020 The DensPart Development Team
+#
+# This file is part of DensPart.
+#
+# DensPart is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 3
+# of the License, or (at your option) any later version.
+#
+# DensPart is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, see <http://www.gnu.org/licenses/>
+# --
 """Generic code for variational Hirshfeld methods.
 
 This code is very preliminary, so no serious docstrings yet.
@@ -193,7 +211,7 @@ class ProModel:
     def assign_pars(self, pars):
         """Assign the promolecule parameters to the basis functions."""
         ipar = 0
-        for ifn, fn in enumerate(self.fns):
+        for fn in self.fns:
             fn.pars[:] = pars[ipar : ipar + fn.npar]
             ipar += fn.npar
 
@@ -284,7 +302,7 @@ def ekld(pars, grid, rho, pro_model, localgrids, pop, rho_cutoff=1e-15):
     # Function value
     kld = np.einsum("i,i,i", grid.weights, rho, lnratio)
     constraint = pop - pro_model.population
-    ekld = kld - constraint
+    result = kld - constraint
     # Gradient
     ipar = 0
     gradient = np.zeros_like(pars)
@@ -303,7 +321,7 @@ def ekld(pars, grid, rho, pro_model, localgrids, pop, rho_cutoff=1e-15):
     print(
         "{:5d} {:12.7f} {:12.7f} {:12.4e} {:12.4e} {:12.7f}".format(
             pro_model.ncompute,
-            ekld,
+            result,
             kld,
             -constraint,
             # TODO: projected gradient may be better.
@@ -311,4 +329,4 @@ def ekld(pars, grid, rho, pro_model, localgrids, pop, rho_cutoff=1e-15):
             time_stop - time_start,
         )
     )
-    return ekld, gradient
+    return result, gradient
