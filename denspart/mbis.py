@@ -5,7 +5,6 @@ from .vh import (
     BasisFunction,
     ProModel,
     optimize_pro_model,
-    RHO_CUTOFF,
 )
 
 import numpy as np
@@ -14,7 +13,7 @@ import numpy as np
 __all__ = ["partition"]
 
 
-def partition(atnums, atcoords, grid, rho, gtol=1e-8, ftol=1e-14):
+def partition(atnums, atcoords, grid, rho, gtol=1e-8, ftol=1e-14, rho_cutoff=1e-10):
     """Perform a basic MBIS partitioning.
 
     Parameters
@@ -31,6 +30,9 @@ def partition(atnums, atcoords, grid, rho, gtol=1e-8, ftol=1e-14):
         Convergence parameter gtol of SciPy's L-BFGS-B minimizer.
     ftol
         Convergence parameter ftol of SciPy's L-BFGS-B minimizer.
+    rho_cutoff
+        Density cutoff used to estimated sizes of local grids. Set to zero for
+        whole-grid integrations. (This will not work for periodic systems.)
 
     Returns
     -------
@@ -38,8 +40,10 @@ def partition(atnums, atcoords, grid, rho, gtol=1e-8, ftol=1e-14):
         The optimized pro-density model.
 
     """
+    # TODO: this function does not do much. It might be abandonded in favor of
+    # some logic in the CLI code.
     pro_model = MBISProModel(atnums, atcoords)
-    return optimize_pro_model(pro_model, grid, rho, gtol, ftol)
+    return optimize_pro_model(pro_model, grid, rho, gtol, ftol, rho_cutoff)
 
 
 class ExponentialFunction(BasisFunction):
@@ -56,10 +60,12 @@ class ExponentialFunction(BasisFunction):
     def compute_population_derivatives(self, pars):
         return np.array([1.0, 0.0])
 
-    def get_cutoff_radius(self, pars):
+    def get_cutoff_radius(self, pars, rho_cutoff):
         population, exponent = pars
-        # return np.inf
-        return (np.log(population) - np.log(RHO_CUTOFF)) / exponent
+        if rho_cutoff <= 0.0:
+            return np.inf
+        else:
+            return (np.log(population) - np.log(rho_cutoff)) / exponent
 
     def compute(self, points, pars):
         dists = np.sqrt(((points - self.center) ** 2).sum(axis=1))

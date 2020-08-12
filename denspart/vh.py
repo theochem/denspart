@@ -13,10 +13,7 @@ from scipy.optimize import minimize
 __all__ = ["optimize_pro_model", "BasisFunction", "ProModel", "ekld"]
 
 
-RHO_CUTOFF = 1e-10
-
-
-def optimize_pro_model(pro_model, grid, rho, gtol=1e-8, ftol=1e-14):
+def optimize_pro_model(pro_model, grid, rho, gtol=1e-8, ftol=1e-14, rho_cutoff=1e-10):
     """Optimize the promodel using the L-BFGS-B minimizer from SciPy.
 
     Parameters
@@ -32,23 +29,25 @@ def optimize_pro_model(pro_model, grid, rho, gtol=1e-8, ftol=1e-14):
         Convergence parameter gtol of SciPy's L-BFGS-B minimizer.
     ftol
         Convergence parameter ftol of SciPy's L-BFGS-B minimizer.
+    rho_cutoff
+        Density cutoff used to estimated sizes of local grids. Set to zero for
+        whole-grid integrations. (This will not work for periodic systems.)
 
     Returns
     -------
     pro_model
         The model for the pro-molecular density, an instance of ``ProModel``.
         It contains the optimized parameters as an attribute.
+    localgrids
+        Local integration grids used for the pro-model basis functions.
 
     """
-    # Precompute the local grids (should be optional)
-    if True:
-        print("Building local grids")
-        localgrids = [
-            grid.get_localgrid(fn.center, fn.get_cutoff_radius(fn.pars))
-            for fn in pro_model.fns
-        ]
-    else:
-        localgrids = None
+    # Precompute the local grids.
+    print("Building local grids")
+    localgrids = [
+        grid.get_localgrid(fn.center, fn.get_cutoff_radius(fn.pars, rho_cutoff))
+        for fn in pro_model.fns
+    ]
     # Compute the total population
     pop = np.einsum("i,i", grid.weights, rho)
     print("Integral of rho:", pop)
@@ -57,10 +56,10 @@ def optimize_pro_model(pro_model, grid, rho, gtol=1e-8, ftol=1e-14):
     print("        elkd          kld   constraint    grad.norm")
     print(" -----------  -----------  -----------  -----------")
     with np.errstate(all="raise"):
-        # The errstate is changed to detect potential nasty numerical issues.
+        # The errstate is changed to detect potentially nasty numerical issues.
         pars0 = np.concatenate([fn.pars for fn in pro_model.fns])
         cost_grad = partial(
-            ekld, grid=grid, rho=rho, pro_model=pro_model, localgrids=localgrids, pop=pop
+            ekld, grid=grid, rho=rho, pro_model=pro_model, localgrids=localgrids, pop=pop,
         )
     # Optimize parameters within the bounds.
     bounds = sum([fn.bounds for fn in pro_model.fns], [])
@@ -83,7 +82,7 @@ def optimize_pro_model(pro_model, grid, rho, gtol=1e-8, ftol=1e-14):
     for fn in pro_model.fns:
         fn.pars[:] = pars1[ipar : ipar + fn.npar]
         ipar += fn.npar
-    return pro_model
+    return pro_model, localgrids
 
 
 class BasisFunction:
@@ -108,7 +107,7 @@ class BasisFunction:
     def compute_population_derivatives(self, pars):
         raise NotImplementedError
 
-    def _get_cutoff_radius(self, pars):
+    def get_cutoff_radius(self, pars, rho_cutoff):
         raise NotImplementedError
 
     def compute(self, points, pars):
@@ -152,21 +151,16 @@ class ProModel:
             ipar += fn.npar
         return result
 
-    def compute_density(self, grid, pars=None, localgrids=None):
+    def compute_density(self, grid, localgrids, pars=None):
         # Compute pro-density
         pro = np.zeros_like(grid.weights)
         ipar = 0
-        # print("  whole grid:", grid.size)
         for ifn, fn in enumerate(self.fns):
             if pars is None:
                 fnpars = fn.pars
             else:
                 fnpars = pars[ipar : ipar + fn.npar]
-            if localgrids is None:
-                localgrid = grid.get_localgrid(fn.center, fn.get_cutoff_radius(fnpars))
-            else:
-                localgrid = localgrids[ifn]
-            # print("  localgrid:", localgrid.size)
+            localgrid = localgrids[ifn]
             np.add.at(pro, localgrid.indices, fn.compute(localgrid.points, fnpars))
             ipar += fn.npar
         return pro
@@ -186,7 +180,7 @@ class ProModel:
         return pro
 
 
-def ekld(pars, grid, rho, pro_model, localgrids, pop):
+def ekld(pars, grid, rho, pro_model, localgrids, pop, rho_cutoff=1e-15):
     """Compute the Extended KL divergence and its gradient.
 
     Parameters
@@ -203,6 +197,9 @@ def ekld(pars, grid, rho, pro_model, localgrids, pop):
         A list of local integration grids for the pro-model basis functions.
     pop
         The integral of rho, to be precomputed before calling this function.
+    rho_cutoff
+        Density cutoff used to neglect grid points with low densities. Including
+        them can result in numerical noise in the result and its derivatives.
 
     Returns
     -------
@@ -212,9 +209,9 @@ def ekld(pars, grid, rho, pro_model, localgrids, pop):
         The gradient of ekld w.r.t. the pro-model parameters.
 
     """
-    pro = pro_model.compute_density(grid, pars, localgrids)
+    pro = pro_model.compute_density(grid, localgrids, pars)
     # compute potentially tricky quantities
-    sick = (rho < RHO_CUTOFF) | (pro < RHO_CUTOFF)
+    sick = (rho < rho_cutoff) | (pro < rho_cutoff)
     with np.errstate(all="ignore"):
         lnratio = np.log(rho) - np.log(pro)
         ratio = rho / pro
@@ -229,10 +226,7 @@ def ekld(pars, grid, rho, pro_model, localgrids, pop):
     gradient = np.zeros_like(pars)
     for ifn, fn in enumerate(pro_model.fns):
         fnpars = pars[ipar : ipar + fn.npar]
-        if localgrids is None:
-            localgrid = grid.get_localgrid(fn.center, fn.get_cutoff_radius(fnpars))
-        else:
-            localgrid = localgrids[ifn]
+        localgrid = localgrids[ifn]
         fn_derivatives = fn.compute_derivatives(localgrid.points, fnpars)
         gradient[ipar : ipar + fn.npar] = -np.einsum(
             "i,i,ji", localgrid.weights, ratio[localgrid.indices], fn_derivatives

@@ -20,13 +20,16 @@ def main():
         raise NotImplementedError
     rho = data["rho"]
     print("MBIS partitioning")
-    pro_model = partition(
-        data["atnums"], data["atcoords"], grid, rho, args.gtol, args.ftol
+    pro_model, localgrids = partition(
+        data["atnums"], data["atcoords"], grid, rho, args.gtol, args.ftol, args.rho_cutoff
     )
     print("Properties")
     results = {
         "charges": pro_model.charges,
-        "rcubed": compute_rcubed(pro_model, grid, rho),
+        "rcubed": compute_rcubed(pro_model, grid, rho, localgrids),
+        "gtol": args.gtol,
+        "ftol": args.ftol,
+        "rho_cutoff": args.rho_cutoff,
     }
     results.update(pro_model.results)
     print("Charges:")
@@ -56,6 +59,14 @@ def parse_args():
         type=float,
         default=1e-14,
         help="ftol convergence criterion for L-BFGS-B. [default=%(default)s]",
+    )
+    parser.add_argument(
+        "--rhocut",
+        type=float,
+        default=1e-10,
+        dest="rho_cutoff",
+        help="Cutoff density, used to estimate local grid sizes. "
+        "Set to zero for while grid integrations (molecules only)."
     )
     return parser.parse_args()
 
