@@ -53,8 +53,8 @@ def optimize_pro_model(pro_model, grid, rho, gtol=1e-8, ftol=1e-14, rho_cutoff=1
     print("Integral of rho:", pop)
     # Define initial guess and cost
     print("Optimization")
-    print("        elkd          kld   constraint    grad.norm")
-    print(" -----------  -----------  -----------  -----------")
+    print("#Iter         elkd          kld   constraint    grad.norm")
+    print("-----  -----------  -----------  -----------  -----------")
     with np.errstate(all="raise"):
         # The errstate is changed to detect potentially nasty numerical issues.
         pars0 = np.concatenate([fn.pars for fn in pro_model.fns])
@@ -76,7 +76,7 @@ def optimize_pro_model(pro_model, grid, rho, gtol=1e-8, ftol=1e-14, rho_cutoff=1
         bounds=bounds,
         options={"gtol": gtol, "ftol": ftol},
     )
-    print(" -----------  -----------  -----------  -----------")
+    print("-----  -----------  -----------  -----------  -----------")
     # Check for convergence.
     print('Optimizer message: "{}"'.format(optresult.message.decode("utf-8")))
     if not optresult.success:
@@ -158,6 +158,7 @@ class ProModel:
         self.atnums = atnums
         self.atcoords = atcoords
         self.fns = fns
+        self.ncompute = 0
 
     @property
     def natom(self):
@@ -204,6 +205,7 @@ class ProModel:
             The prodensity on the points of ``grid``.
 
         """
+        self.ncompute += 1
         pro = np.zeros_like(grid.weights)
         for fn, localgrid in zip(self.fns, localgrids):
             np.add.at(pro, localgrid.indices, fn.compute(localgrid.points))
@@ -286,8 +288,8 @@ def ekld(pars, grid, rho, pro_model, localgrids, pop, rho_cutoff=1e-15):
         ipar += fn.npar
     # Screen output
     print(
-        "{:12.7f} {:12.7f} {:12.7f} {:12.7f}".format(
-            ekld, kld, -constraint, np.linalg.norm(gradient)
+        "{:5d} {:12.7f} {:12.7f} {:12.7f} {:12.7f}".format(
+            pro_model.ncompute, ekld, kld, -constraint, np.linalg.norm(gradient)
         )
     )
     return ekld, gradient
