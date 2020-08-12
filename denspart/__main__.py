@@ -21,7 +21,13 @@ def main():
     rho = data["rho"]
     print("MBIS partitioning")
     pro_model, localgrids = partition(
-        data["atnums"], data["atcoords"], grid, rho, args.gtol, args.ftol, args.rho_cutoff
+        data["atnums"],
+        data["atcoords"],
+        grid,
+        rho,
+        args.gtol,
+        args.ftol,
+        args.rho_cutoff,
     )
     print("Properties")
     results = {
@@ -66,7 +72,7 @@ def parse_args():
         default=1e-10,
         dest="rho_cutoff",
         help="Cutoff density, used to estimate local grid sizes. "
-        "Set to zero for while grid integrations (molecules only)."
+        "Set to zero for while grid integrations (molecules only).",
     )
     return parser.parse_args()
 

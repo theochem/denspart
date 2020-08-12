@@ -93,8 +93,8 @@ class MBISProModel(ProModel):
     @property
     def results(self):
         """A dictionary with additional results derived from the pro-parameters."""
-        valence_charges = np.zeros(self.atnums.shape, dtype=float)
-        valence_widths = np.zeros(self.atnums.shape, dtype=float)
+        valence_charges = np.zeros(self.natom, dtype=float)
+        valence_widths = np.zeros(self.natom, dtype=float)
         for fn in self.fns:
             width = 1 / fn.pars[1]
             if width > valence_widths[fn.iatom]:

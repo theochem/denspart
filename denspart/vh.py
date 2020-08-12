@@ -59,7 +59,12 @@ def optimize_pro_model(pro_model, grid, rho, gtol=1e-8, ftol=1e-14, rho_cutoff=1
         # The errstate is changed to detect potentially nasty numerical issues.
         pars0 = np.concatenate([fn.pars for fn in pro_model.fns])
         cost_grad = partial(
-            ekld, grid=grid, rho=rho, pro_model=pro_model, localgrids=localgrids, pop=pop,
+            ekld,
+            grid=grid,
+            rho=rho,
+            pro_model=pro_model,
+            localgrids=localgrids,
+            pop=pop,
         )
     # Optimize parameters within the bounds.
     bounds = sum([fn.bounds for fn in pro_model.fns], [])
@@ -86,7 +91,24 @@ def optimize_pro_model(pro_model, grid, rho, gtol=1e-8, ftol=1e-14, rho_cutoff=1
 
 
 class BasisFunction:
+    """Base class for atom-centered basis functions for the pro-molecular density."""
+
     def __init__(self, iatom, center, pars, bounds):
+        """Initialize a basis function.
+
+        Parameters
+        ----------
+        iatom
+            Index of the atom with which this function is associated.
+        center
+            The center of the function in Cartesian coordinates.
+        pars
+            The initial values of the proparameters for this function.
+        bounds
+            List of tuples with (lower, upper) bounds for each parameter. Use
+            -np.inf and np.inf to disable bounds.
+
+        """
         if len(pars) != len(bounds):
             raise ValueError(
                 "The number of parameters must equal the number of bounds."
@@ -102,33 +124,51 @@ class BasisFunction:
         return len(self.pars)
 
     def compute_population(self, pars):
+        """Compute the total population of this basis function."""
         raise NotImplementedError
 
     def compute_population_derivatives(self, pars):
+        """Compute the total derivatives of the population w.r.t. proparameters."""
         raise NotImplementedError
 
     def get_cutoff_radius(self, pars, rho_cutoff):
+        """Estimate the cutoff radius for the given density cutoff."""
         raise NotImplementedError
 
     def compute(self, points, pars):
+        """Compute the basisfunction values on a grid."""
         raise NotImplementedError
 
     def compute_derivatives(self, points, pars):
+        """Compute derivatives of the basisfunction values on a grid."""
         raise NotImplementedError
 
 
 class ProModel:
     def __init__(self, atnums, atcoords, fns):
-        self.atcoords = atcoords
+        """Initialize the prodensity model.
+
+        Parameters
+        ----------
+        atnums
+            Atomic numbers
+        atcoords
+            Atomic coordinates
+        fns
+            A list of basis functions, instances of ``BasisFunction``.
+        """
         self.atnums = atnums
+        self.atcoords = atcoords
         self.fns = fns
 
     @property
     def natom(self):
+        """The number of atoms."""
         return len(self.atnums)
 
     @property
     def charges(self):
+        """Proatomic charges."""
         charges = np.array(self.atnums, dtype=float)
         for fn in self.fns:
             charges[fn.iatom] -= fn.compute_population(fn.pars)
@@ -140,6 +180,7 @@ class ProModel:
         return {}
 
     def compute_population(self, pars=None):
+        """Compute proatomic populations (for the given parameters)."""
         ipar = 0
         result = 0.0
         for ifn, fn in enumerate(self.fns):
@@ -152,7 +193,24 @@ class ProModel:
         return result
 
     def compute_density(self, grid, localgrids, pars=None):
-        # Compute pro-density
+        """Compute prodensity on a grid (for the given parameters).
+
+        Parameters
+        ----------
+        grid
+            The whole integration grid, on which the results is computed.
+        localgrids
+            A list of local grids, one for each basis function.
+        pars
+            Proparameters. When not given, The basis functions owns parameters
+            are used.
+
+        Returns
+        -------
+        pro
+            The prodensity on the points of ``grid``.
+
+        """
         pro = np.zeros_like(grid.weights)
         ipar = 0
         for ifn, fn in enumerate(self.fns):
@@ -166,7 +224,24 @@ class ProModel:
         return pro
 
     def compute_proatom(self, iatom, grid, pars=None):
-        # Compute pro-density
+        """Compute proatom density on a grid (for the given parameters).
+
+        Parameters
+        ----------
+        iatom
+            The atomic index.
+        grid
+            The whole integration grid, on which the results is computed.
+        pars
+            Proparameters (for the whole molecule). When not given, The basis
+            functions owns parameters are used.
+
+        Returns
+        -------
+        pro
+            The prodensity on the points of ``grid``.
+
+        """
         pro = np.zeros_like(grid.weights)
         ipar = 0
         for ifn, fn in enumerate(self.fns):
@@ -210,7 +285,7 @@ def ekld(pars, grid, rho, pro_model, localgrids, pop, rho_cutoff=1e-15):
 
     """
     pro = pro_model.compute_density(grid, localgrids, pars)
-    # compute potentially tricky quantities
+    # Compute potentially tricky quantities.
     sick = (rho < rho_cutoff) | (pro < rho_cutoff)
     with np.errstate(all="ignore"):
         lnratio = np.log(rho) - np.log(pro)
@@ -232,6 +307,7 @@ def ekld(pars, grid, rho, pro_model, localgrids, pop, rho_cutoff=1e-15):
             "i,i,ji", localgrid.weights, ratio[localgrid.indices], fn_derivatives
         ) + fn.compute_population_derivatives(fnpars)
         ipar += fn.npar
+    # Screen output
     print(
         "{:12.7f} {:12.7f} {:12.7f} {:12.7f}".format(
             ekld, kld, -constraint, np.linalg.norm(gradient)

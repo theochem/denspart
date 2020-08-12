@@ -5,6 +5,25 @@ import numpy as np
 
 
 def compute_rcubed(pro_model, grid, rho, localgrids):
+    """Compute expectation values of r^3 for each atom.
+
+    Parameters
+    ----------
+    pro_model
+        The model for the pro-molecular density, an instance of ``ProModel``.
+    grid
+        The whole integration grid, instance of ``grid.basegrid.Grid.``
+    rho
+        The electron density.
+    localgrids
+        A list of local grids, one for each basis function.
+
+    Returns
+    -------
+    rcubed
+        An array with expectation values of r^3.
+
+    """
     pro = pro_model.compute_density(grid, localgrids)
     result = np.zeros(pro_model.natom)
     for iatom, atcoord in enumerate(pro_model.atcoords):
