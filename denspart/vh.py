@@ -44,10 +44,11 @@ def optimize_pro_model(pro_model, grid, rho):
         method="l-bfgs-b",
         jac=True,
         bounds=bounds,
+        options={"gtol": 1e-8, "ftol": 1e-14},
     )
     print(" -----------  -----------  -----------  -----------")
     # Check for convergence.
-    print("Optimizer message: \"{}\"".format(optresult.message.decode("utf-8")))
+    print('Optimizer message: "{}"'.format(optresult.message.decode("utf-8")))
     if not optresult.success:
         raise RuntimeError("Convergence failure.")
     # Assign the optimal parameters to the pro_model.
