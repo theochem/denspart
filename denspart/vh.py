@@ -126,17 +126,16 @@ class ProModel:
         return len(self.atnums)
 
     @property
-    def charges(self, pars=None):
+    def charges(self):
         charges = np.array(self.atnums, dtype=float)
-        ipar = 0
         for fn in self.fns:
-            if pars is None:
-                fnpars = fn.pars
-            else:
-                fnpars = pars[ipar : ipar + fn.npar]
-            charges[fn.iatom] -= fn.compute_population(fnpars)
-            ipar += fn.npar
+            charges[fn.iatom] -= fn.compute_population(fn.pars)
         return charges
+
+    @property
+    def results(self):
+        """A dictionary with additional results derived from the pro-parameters."""
+        return {}
 
     def compute_population(self, pars=None):
         ipar = 0

@@ -38,7 +38,7 @@ def partition(atnums, atcoords, grid, rho, gtol=1e-8, ftol=1e-14):
         The optimized pro-density model.
 
     """
-    pro_model = build_initial_pro_model(atnums, atcoords)
+    pro_model = MBISProModel(atnums, atcoords)
     return optimize_pro_model(pro_model, grid, rho, gtol, ftol)
 
 
@@ -75,12 +75,31 @@ class ExponentialFunction(BasisFunction):
         )
 
 
-def build_initial_pro_model(atnums, atcoords):
-    fns = []
-    for iatom, (atnum, atcoord) in enumerate(zip(atnums, atcoords)):
-        for population, exponent in INITIAL_MBIS_PARAMETERS[atnum]:
-            fns.append(ExponentialFunction(iatom, atcoord, [population, exponent]))
-    return ProModel(atnums, atcoords, fns)
+class MBISProModel(ProModel):
+    def __init__(self, atnums, atcoords):
+        """Construct an MBIS ProModel with a sensible initial guess."""
+        fns = []
+        for iatom, (atnum, atcoord) in enumerate(zip(atnums, atcoords)):
+            for population, exponent in INITIAL_MBIS_PARAMETERS[atnum]:
+                fns.append(ExponentialFunction(iatom, atcoord, [population, exponent]))
+        super().__init__(atnums, atcoords, fns)
+
+    @property
+    def results(self):
+        """A dictionary with additional results derived from the pro-parameters."""
+        valence_charges = np.zeros(self.atnums.shape, dtype=float)
+        valence_widths = np.zeros(self.atnums.shape, dtype=float)
+        for fn in self.fns:
+            width = 1 / fn.pars[1]
+            if width > valence_widths[fn.iatom]:
+                valence_widths[fn.iatom] = width
+                valence_charges[fn.iatom] = -fn.pars[0]
+        core_charges = self.charges - valence_charges
+        return {
+            "core_charges": core_charges,
+            "valence_charges": valence_charges,
+            "valence_widths": valence_widths,
+        }
 
 
 INITIAL_MBIS_PARAMETERS = {

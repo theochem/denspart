@@ -22,12 +22,15 @@ def main():
     print("Sanity checks")
     print("Integral of rho:", grid.integrate(rho))
     print("MBIS partitioning")
-    pro_model = partition(data["atnums"], data["atcoords"], grid, rho, args.gtol, args.ftol)
+    pro_model = partition(
+        data["atnums"], data["atcoords"], grid, rho, args.gtol, args.ftol
+    )
     print("Properties")
     results = {
         "charges": pro_model.charges,
         "rcubed": compute_rcubed(pro_model, grid, rho),
     }
+    results.update(pro_model.results)
     print("Charges:")
     print(results["charges"])
     print("Total charge:", pro_model.charges.sum())
@@ -44,8 +47,18 @@ def parse_args():
     parser.add_argument(
         "fn_results", help="The NPZ file in which resutls will be stored."
     )
-    parser.add_argument("--gtol", type=float, default=1e-8, help="gtol convergence criterion for L-BFGS-B. [default=%(default)s]")
-    parser.add_argument("--ftol", type=float, default=1e-14, help="ftol convergence criterion for L-BFGS-B. [default=%(default)s]")
+    parser.add_argument(
+        "--gtol",
+        type=float,
+        default=1e-8,
+        help="gtol convergence criterion for L-BFGS-B. [default=%(default)s]",
+    )
+    parser.add_argument(
+        "--ftol",
+        type=float,
+        default=1e-14,
+        help="ftol convergence criterion for L-BFGS-B. [default=%(default)s]",
+    )
     return parser.parse_args()
 
 
