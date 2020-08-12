@@ -19,8 +19,6 @@ def main():
     else:
         raise NotImplementedError
     rho = data["rho"]
-    print("Sanity checks")
-    print("Integral of rho:", grid.integrate(rho))
     print("MBIS partitioning")
     pro_model = partition(
         data["atnums"], data["atcoords"], grid, rho, args.gtol, args.ftol

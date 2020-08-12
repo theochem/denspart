@@ -49,6 +49,9 @@ def optimize_pro_model(pro_model, grid, rho, gtol=1e-8, ftol=1e-14):
         ]
     else:
         localgrids = None
+    # Compute the total population
+    pop = np.einsum("i,i", grid.weights, rho)
+    print("Integral of rho:", pop)
     # Define initial guess and cost
     print("Optimization")
     print("        elkd          kld   constraint    grad.norm")
@@ -57,7 +60,7 @@ def optimize_pro_model(pro_model, grid, rho, gtol=1e-8, ftol=1e-14):
         # The errstate is changed to detect potential nasty numerical issues.
         pars0 = np.concatenate([fn.pars for fn in pro_model.fns])
         cost_grad = partial(
-            ekld, grid=grid, rho=rho, pro_model=pro_model, localgrids=localgrids
+            ekld, grid=grid, rho=rho, pro_model=pro_model, localgrids=localgrids, pop=pop
         )
     # Optimize parameters within the bounds.
     bounds = sum([fn.bounds for fn in pro_model.fns], [])
@@ -183,8 +186,32 @@ class ProModel:
         return pro
 
 
-def ekld(pars, grid, rho, pro_model, localgrids):
-    """Compute the Extended KL divergence and its gradient."""
+def ekld(pars, grid, rho, pro_model, localgrids, pop):
+    """Compute the Extended KL divergence and its gradient.
+
+    Parameters
+    ----------
+    pars
+        A NumPy array with promodel parameters.
+    grid
+        A numerical integration grid with, instance of ``grid.basegrid.Grid``.
+    rho
+        The electron density evaluated on the grid.
+    pro_model
+        The model for the pro-molecular density, an instance of ``ProModel``.
+    local_grids
+        A list of local integration grids for the pro-model basis functions.
+    pop
+        The integral of rho, to be precomputed before calling this function.
+
+    Returns
+    -------
+    ekld
+        The extended KL-d, i.e. including the Lagrange multiplier.
+    gradient
+        The gradient of ekld w.r.t. the pro-model parameters.
+
+    """
     pro = pro_model.compute_density(grid, pars, localgrids)
     # compute potentially tricky quantities
     sick = (rho < RHO_CUTOFF) | (pro < RHO_CUTOFF)
@@ -195,9 +222,7 @@ def ekld(pars, grid, rho, pro_model, localgrids):
     ratio[sick] = 0.0
     # Function value
     kld = np.einsum("i,i,i", grid.weights, rho, lnratio)
-    propop = pro_model.compute_population(pars)
-    # TODO: compute integral of rho only once
-    constraint = np.einsum("i,i", grid.weights, rho) - propop
+    constraint = pop - pro_model.compute_population(pars)
     ekld = kld - constraint
     # Gradient
     ipar = 0
