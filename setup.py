@@ -44,7 +44,13 @@ setup(
     author_email="horton.chemtools@gmail.com",
     url="https://github.com/theochem/denspart",
     package_dir={"denspart": "denspart"},
-    packages=["denspart", "denspart.test"],
+    packages=["denspart", "denspart.adapters", "denspart.adapters.test"],
+    entry_points={
+        "console_scripts": [
+            "denspart-rho-horton3 = denspart.adapters.horton3:main",
+            "denspart = denspart.__main__:main",
+        ]
+    },
     classifiers=[
         "Environment :: Console",
         "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",

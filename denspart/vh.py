@@ -36,7 +36,14 @@ def optimize_pro_model(pro_model, grid, rho):
         )
     # Optimize parameters within the bounds.
     bounds = sum([fn.bounds for fn in pro_model.fns], [])
-    optresult = minimize(cost_grad, pars0, method="l-bfgs-b", jac=True, bounds=bounds, options={"maxiter": 10})
+    optresult = minimize(
+        cost_grad,
+        pars0,
+        method="l-bfgs-b",
+        jac=True,
+        bounds=bounds,
+        options={"maxiter": 10},
+    )
     # TODO: add check for convergence issues. An error should be raised if
     # the convergence fails.
     # Assign the optimal parameters to the pro_model.

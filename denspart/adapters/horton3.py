@@ -10,7 +10,11 @@ This module is far from polished and is currently only used for prototyping.
 """
 
 
+import argparse
+
 import numpy as np
+
+from iodata import load_one
 
 from gbasis.wrappers import from_iodata
 from gbasis.evals.density import evaluate_density
@@ -116,3 +120,38 @@ def _compute_density(iodata, one_rdm, points):
     rho = evaluate_density(one_rdm, basis, points, coord_type=coord_types)
     assert (rho >= 0).all()
     return rho
+
+
+def main():
+    """Command-line interface."""
+    args = parse_args()
+    iodata = load_one(args.fn_wfn)
+    grid, rho = prepare_input(iodata)
+    np.savez(
+        args.fn_rho,
+        **{
+            "atcoords": iodata.atcoords,
+            "atnums": iodata.atnums,
+            "atcorenums": iodata.atcorenums,
+            "points": grid.points,
+            "weights": grid.weights,
+            "rho": rho,
+            "cellvecs": np.zeros((0, 3)),
+        }
+    )
+
+
+def parse_args():
+    """Parse command-line arguments."""
+    DESCRIPTION = """\
+    Setup a default integration grid and compute the density with HORTON3.
+    """
+    parser = argparse.ArgumentParser(
+        prog="denspart-rho-horton3", description=DESCRIPTION
+    )
+    parser.add_argument("fn_wfn", help="The wavefunction file.")
+    parser.add_argument(
+        "fn_rho",
+        help="The NPZ file in which the grid and the " "density will be stored.",
+    )
+    return parser.parse_args()
