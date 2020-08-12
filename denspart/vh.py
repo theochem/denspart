@@ -83,6 +83,8 @@ def optimize_pro_model(pro_model, grid, rho, gtol=1e-8, ftol=1e-14, rho_cutoff=1
     if not optresult.success:
         raise RuntimeError("Convergence failure.")
     # Wrap up
+    print("Total charge:       {:20.7e}".format(pro_model.atnums.sum() - pop))
+    print("Sum atomic charges: {:20.7e}".format(pro_model.charges.sum()))
     pro_model.assign_pars(optresult.x)
     return pro_model, localgrids
 

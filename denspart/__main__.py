@@ -40,7 +40,6 @@ def main():
     results.update(pro_model.results)
     print("Charges:")
     print(results["charges"])
-    print("Total charge:", pro_model.charges.sum())
     np.savez(args.fn_results, **results)
 
 
