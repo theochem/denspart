@@ -100,10 +100,10 @@ class BasisFunction:
         return len(self.pars)
 
     def compute_population(self, pars):
-        return pars[0]
+        raise NotImplementedError
 
     def compute_population_derivatives(self, pars):
-        return np.array([1.0, 0.0])
+        raise NotImplementedError
 
     def _get_cutoff_radius(self, pars):
         raise NotImplementedError
