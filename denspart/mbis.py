@@ -54,27 +54,29 @@ class ExponentialFunction(BasisFunction):
             raise TypeError("Expecting two positive parameters.")
         super().__init__(iatom, center, pars, [(0.1, 1e2), (0.1, 1e3)])
 
-    def compute_population(self, pars):
-        return pars[0]
+    @property
+    def population(self):
+        return self.pars[0]
 
-    def compute_population_derivatives(self, pars):
+    @property
+    def population_derivatives(self):
         return np.array([1.0, 0.0])
 
-    def get_cutoff_radius(self, pars, rho_cutoff):
-        population, exponent = pars
+    def get_cutoff_radius(self, rho_cutoff):
         if rho_cutoff <= 0.0:
             return np.inf
         else:
+            population, exponent = self.pars
             return (np.log(population) - np.log(rho_cutoff)) / exponent
 
-    def compute(self, points, pars):
+    def compute(self, points):
         dists = np.sqrt(((points - self.center) ** 2).sum(axis=1))
-        population, exponent = pars
+        population, exponent = self.pars
         return population * np.exp(-exponent * dists) * (exponent ** 3 / 8 / np.pi)
 
-    def compute_derivatives(self, points, pars):
+    def compute_derivatives(self, points):
         dists = np.sqrt(((points - self.center) ** 2).sum(axis=1))
-        population, exponent = pars
+        population, exponent = self.pars
         factor = np.exp(-exponent * dists) * (exponent ** 2 / 8 / np.pi)
         return np.array(
             [factor * exponent, population * factor * (3 - dists * exponent)]

@@ -45,7 +45,7 @@ def optimize_pro_model(pro_model, grid, rho, gtol=1e-8, ftol=1e-14, rho_cutoff=1
     # Precompute the local grids.
     print("Building local grids")
     localgrids = [
-        grid.get_localgrid(fn.center, fn.get_cutoff_radius(fn.pars, rho_cutoff))
+        grid.get_localgrid(fn.center, fn.get_cutoff_radius(rho_cutoff))
         for fn in pro_model.fns
     ]
     # Compute the total population
@@ -81,12 +81,8 @@ def optimize_pro_model(pro_model, grid, rho, gtol=1e-8, ftol=1e-14, rho_cutoff=1
     print('Optimizer message: "{}"'.format(optresult.message.decode("utf-8")))
     if not optresult.success:
         raise RuntimeError("Convergence failure.")
-    # Assign the optimal parameters to the pro_model.
-    pars1 = optresult.x
-    ipar = 0
-    for fn in pro_model.fns:
-        fn.pars[:] = pars1[ipar : ipar + fn.npar]
-        ipar += fn.npar
+    # Wrap up
+    pro_model.assign_pars(optresult.x)
     return pro_model, localgrids
 
 
@@ -123,23 +119,25 @@ class BasisFunction:
         """Number of parameters."""
         return len(self.pars)
 
-    def compute_population(self, pars):
-        """Compute the total population of this basis function."""
+    @property
+    def population(self):
+        """The total population of this basis function."""
         raise NotImplementedError
 
-    def compute_population_derivatives(self, pars):
-        """Compute the total derivatives of the population w.r.t. proparameters."""
+    @property
+    def population_derivatives(self):
+        """The total derivatives of the population w.r.t. proparameters."""
         raise NotImplementedError
 
-    def get_cutoff_radius(self, pars, rho_cutoff):
+    def get_cutoff_radius(self, rho_cutoff):
         """Estimate the cutoff radius for the given density cutoff."""
         raise NotImplementedError
 
-    def compute(self, points, pars):
+    def compute(self, points):
         """Compute the basisfunction values on a grid."""
         raise NotImplementedError
 
-    def compute_derivatives(self, points, pars):
+    def compute_derivatives(self, points):
         """Compute derivatives of the basisfunction values on a grid."""
         raise NotImplementedError
 
@@ -171,7 +169,7 @@ class ProModel:
         """Proatomic charges."""
         charges = np.array(self.atnums, dtype=float)
         for fn in self.fns:
-            charges[fn.iatom] -= fn.compute_population(fn.pars)
+            charges[fn.iatom] -= fn.population
         return charges
 
     @property
@@ -179,20 +177,18 @@ class ProModel:
         """A dictionary with additional results derived from the pro-parameters."""
         return {}
 
-    def compute_population(self, pars=None):
-        """Compute proatomic populations (for the given parameters)."""
-        ipar = 0
-        result = 0.0
-        for ifn, fn in enumerate(self.fns):
-            if pars is None:
-                fnpars = fn.pars
-            else:
-                fnpars = pars[ipar : ipar + fn.npar]
-            result += fn.compute_population(fnpars)
-            ipar += fn.npar
-        return result
+    @property
+    def population(self):
+        """The promolecular population."""
+        return sum(fn.population for fn in self.fns)
 
-    def compute_density(self, grid, localgrids, pars=None):
+    def assign_pars(self, pars):
+        ipar = 0
+        for ifn, fn in enumerate(self.fns):
+            fn.pars[:] = pars[ipar : ipar + fn.npar]
+            ipar += fn.npar
+
+    def compute_density(self, grid, localgrids):
         """Compute prodensity on a grid (for the given parameters).
 
         Parameters
@@ -201,9 +197,6 @@ class ProModel:
             The whole integration grid, on which the results is computed.
         localgrids
             A list of local grids, one for each basis function.
-        pars
-            Proparameters. When not given, The basis functions owns parameters
-            are used.
 
         Returns
         -------
@@ -212,18 +205,11 @@ class ProModel:
 
         """
         pro = np.zeros_like(grid.weights)
-        ipar = 0
-        for ifn, fn in enumerate(self.fns):
-            if pars is None:
-                fnpars = fn.pars
-            else:
-                fnpars = pars[ipar : ipar + fn.npar]
-            localgrid = localgrids[ifn]
-            np.add.at(pro, localgrid.indices, fn.compute(localgrid.points, fnpars))
-            ipar += fn.npar
+        for fn, localgrid in zip(self.fns, localgrids):
+            np.add.at(pro, localgrid.indices, fn.compute(localgrid.points))
         return pro
 
-    def compute_proatom(self, iatom, grid, pars=None):
+    def compute_proatom(self, iatom, grid):
         """Compute proatom density on a grid (for the given parameters).
 
         Parameters
@@ -232,9 +218,6 @@ class ProModel:
             The atomic index.
         grid
             The whole integration grid, on which the results is computed.
-        pars
-            Proparameters (for the whole molecule). When not given, The basis
-            functions owns parameters are used.
 
         Returns
         -------
@@ -243,15 +226,9 @@ class ProModel:
 
         """
         pro = np.zeros_like(grid.weights)
-        ipar = 0
-        for ifn, fn in enumerate(self.fns):
-            if pars is None:
-                fnpars = fn.pars
-            else:
-                fnpars = pars[ipar : ipar + fn.npar]
+        for fn in self.fns:
             if fn.iatom == iatom:
-                pro += fn.compute(grid.points, fnpars)
-            ipar += fn.npar
+                pro += fn.compute(grid.points)
         return pro
 
 
@@ -284,7 +261,8 @@ def ekld(pars, grid, rho, pro_model, localgrids, pop, rho_cutoff=1e-15):
         The gradient of ekld w.r.t. the pro-model parameters.
 
     """
-    pro = pro_model.compute_density(grid, localgrids, pars)
+    pro_model.assign_pars(pars)
+    pro = pro_model.compute_density(grid, localgrids)
     # Compute potentially tricky quantities.
     sick = (rho < rho_cutoff) | (pro < rho_cutoff)
     with np.errstate(all="ignore"):
@@ -294,18 +272,17 @@ def ekld(pars, grid, rho, pro_model, localgrids, pop, rho_cutoff=1e-15):
     ratio[sick] = 0.0
     # Function value
     kld = np.einsum("i,i,i", grid.weights, rho, lnratio)
-    constraint = pop - pro_model.compute_population(pars)
+    constraint = pop - pro_model.population
     ekld = kld - constraint
     # Gradient
     ipar = 0
     gradient = np.zeros_like(pars)
     for ifn, fn in enumerate(pro_model.fns):
-        fnpars = pars[ipar : ipar + fn.npar]
         localgrid = localgrids[ifn]
-        fn_derivatives = fn.compute_derivatives(localgrid.points, fnpars)
+        fn_derivatives = fn.compute_derivatives(localgrid.points)
         gradient[ipar : ipar + fn.npar] = -np.einsum(
             "i,i,ji", localgrid.weights, ratio[localgrid.indices], fn_derivatives
-        ) + fn.compute_population_derivatives(fnpars)
+        ) + fn.population_derivatives
         ipar += fn.npar
     # Screen output
     print(
