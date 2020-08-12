@@ -56,27 +56,22 @@ def optimize_pro_model(pro_model, grid, rho, gtol=1e-8, ftol=1e-14, rho_cutoff=1
     print("Optimization")
     print("#Iter         elkd          kld   constraint     grad.rms  cputime (s)")
     print("-----  -----------  -----------  -----------  -----------  -----------")
+    pars0 = np.concatenate([fn.pars for fn in pro_model.fns])
+    cost_grad = partial(
+        ekld, grid=grid, rho=rho, pro_model=pro_model, localgrids=localgrids, pop=pop,
+    )
     with np.errstate(all="raise"):
         # The errstate is changed to detect potentially nasty numerical issues.
-        pars0 = np.concatenate([fn.pars for fn in pro_model.fns])
-        cost_grad = partial(
-            ekld,
-            grid=grid,
-            rho=rho,
-            pro_model=pro_model,
-            localgrids=localgrids,
-            pop=pop,
+        # Optimize parameters within the bounds.
+        bounds = sum([fn.bounds for fn in pro_model.fns], [])
+        optresult = minimize(
+            cost_grad,
+            pars0,
+            method="l-bfgs-b",
+            jac=True,
+            bounds=bounds,
+            options={"gtol": gtol, "ftol": ftol},
         )
-    # Optimize parameters within the bounds.
-    bounds = sum([fn.bounds for fn in pro_model.fns], [])
-    optresult = minimize(
-        cost_grad,
-        pars0,
-        method="l-bfgs-b",
-        jac=True,
-        bounds=bounds,
-        options={"gtol": gtol, "ftol": ftol},
-    )
     print("-----  -----------  -----------  -----------  -----------  -----------")
     # Check for convergence.
     print('Optimizer message: "{}"'.format(optresult.message.decode("utf-8")))
