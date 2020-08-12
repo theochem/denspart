@@ -16,7 +16,30 @@ __all__ = ["optimize_pro_model", "BasisFunction", "ProModel", "ekld"]
 RHO_CUTOFF = 1e-10
 
 
-def optimize_pro_model(pro_model, grid, rho):
+def optimize_pro_model(pro_model, grid, rho, gtol=1e-8, ftol=1e-14):
+    """Optimize the promodel using the L-BFGS-B minimizer from SciPy.
+
+    Parameters
+    ----------
+    pro_model
+        The model for the pro-molecular density, an instance of ``ProModel``.
+        It contains the initial parameters as an attribute.
+    grid
+        The integration grid, an instance of ``grid.basegrid.Grid``.
+    rho
+        The electron density evaluated on the grid.
+    gtol
+        Convergence parameter gtol of SciPy's L-BFGS-B minimizer.
+    ftol
+        Convergence parameter ftol of SciPy's L-BFGS-B minimizer.
+
+    Returns
+    -------
+    pro_model
+        The model for the pro-molecular density, an instance of ``ProModel``.
+        It contains the optimized parameters as an attribute.
+
+    """
     # Precompute the local grids (should be optional)
     if True:
         print("Building local grids")
@@ -44,7 +67,7 @@ def optimize_pro_model(pro_model, grid, rho):
         method="l-bfgs-b",
         jac=True,
         bounds=bounds,
-        options={"gtol": 1e-8, "ftol": 1e-14},
+        options={"gtol": gtol, "ftol": ftol},
     )
     print(" -----------  -----------  -----------  -----------")
     # Check for convergence.

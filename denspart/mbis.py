@@ -14,7 +14,7 @@ import numpy as np
 __all__ = ["partition"]
 
 
-def partition(atnums, atcoords, grid, rho):
+def partition(atnums, atcoords, grid, rho, gtol=1e-8, ftol=1e-14):
     """Perform a basic MBIS partitioning.
 
     Parameters
@@ -27,6 +27,10 @@ def partition(atnums, atcoords, grid, rho):
         A molecular integration grid, with support for subgrids.
     rho
         The electron density on the grid
+    gtol
+        Convergence parameter gtol of SciPy's L-BFGS-B minimizer.
+    ftol
+        Convergence parameter ftol of SciPy's L-BFGS-B minimizer.
 
     Returns
     -------
@@ -35,8 +39,7 @@ def partition(atnums, atcoords, grid, rho):
 
     """
     pro_model = build_initial_pro_model(atnums, atcoords)
-    # return pro_model
-    return optimize_pro_model(pro_model, grid, rho)
+    return optimize_pro_model(pro_model, grid, rho, gtol, ftol)
 
 
 class ExponentialFunction(BasisFunction):
