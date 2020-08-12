@@ -5,6 +5,7 @@ This code is very preliminary, so no serious docstrings yet.
 
 
 from functools import partial
+import time
 
 import numpy as np
 from scipy.optimize import minimize
@@ -53,8 +54,8 @@ def optimize_pro_model(pro_model, grid, rho, gtol=1e-8, ftol=1e-14, rho_cutoff=1
     print("Integral of rho:", pop)
     # Define initial guess and cost
     print("Optimization")
-    print("#Iter         elkd          kld   constraint    grad.norm")
-    print("-----  -----------  -----------  -----------  -----------")
+    print("#Iter         elkd          kld   constraint    grad.norm  cputime (s)")
+    print("-----  -----------  -----------  -----------  -----------  -----------")
     with np.errstate(all="raise"):
         # The errstate is changed to detect potentially nasty numerical issues.
         pars0 = np.concatenate([fn.pars for fn in pro_model.fns])
@@ -76,7 +77,7 @@ def optimize_pro_model(pro_model, grid, rho, gtol=1e-8, ftol=1e-14, rho_cutoff=1
         bounds=bounds,
         options={"gtol": gtol, "ftol": ftol},
     )
-    print("-----  -----------  -----------  -----------  -----------")
+    print("-----  -----------  -----------  -----------  -----------  -----------")
     # Check for convergence.
     print('Optimizer message: "{}"'.format(optresult.message.decode("utf-8")))
     if not optresult.success:
@@ -273,6 +274,7 @@ def ekld(pars, grid, rho, pro_model, localgrids, pop, rho_cutoff=1e-15):
         The gradient of ekld w.r.t. the pro-model parameters.
 
     """
+    time_start = time.process_time()
     pro_model.assign_pars(pars)
     pro = pro_model.compute_density(grid, localgrids)
     # Compute potentially tricky quantities.
@@ -300,9 +302,11 @@ def ekld(pars, grid, rho, pro_model, localgrids, pop, rho_cutoff=1e-15):
         )
         ipar += fn.npar
     # Screen output
+    time_stop = time.process_time()
     print(
-        "{:5d} {:12.7f} {:12.7f} {:12.7f} {:12.7f}".format(
-            pro_model.ncompute, ekld, kld, -constraint, np.linalg.norm(gradient)
+        "{:5d} {:12.7f} {:12.7f} {:12.7f} {:12.7f} {:12.7f}".format(
+            pro_model.ncompute, ekld, kld, -constraint, np.linalg.norm(gradient),
+            time_stop - time_start,
         )
     )
     return ekld, gradient
