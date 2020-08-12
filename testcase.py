@@ -10,9 +10,6 @@ from denspart.mbis import partition
 from denspart.properties import compute_rcubed
 
 
-np.seterr(invalid="raise", divide="raise", over="raise")
-
-
 def main():
     # fn_wfn = "h2o_sto3g.fchk"
     fn_wfn = "orca.molden.input"

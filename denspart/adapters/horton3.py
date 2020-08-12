@@ -113,7 +113,6 @@ def _compute_density(iodata, one_rdm, points):
 
     """
     basis, coord_types = from_iodata(iodata)
-    print(coord_types)
     rho = evaluate_density(one_rdm, basis, points, coord_type=coord_types)
     assert (rho >= 0).all()
     return rho

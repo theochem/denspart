@@ -9,11 +9,6 @@ from functools import partial
 import numpy as np
 from scipy.optimize import minimize
 
-from grid.basegrid import SubGrid
-
-
-np.seterr(invalid="raise", divide="raise", over="raise")
-
 
 __all__ = ["optimize_pro_model", "BasisFunction", "ProModel", "ekld"]
 
@@ -22,21 +17,23 @@ RHO_CUTOFF = 1e-10
 
 
 def optimize_pro_model(pro_model, grid, rho):
-    # Precompute the subgrids (should be optional)
+    # Precompute the local grids (should be optional)
     if True:
-        print("Building subgrids")
-        subgrids = [
-            grid.get_subgrid(fn.center, fn.get_cutoff_radius(fn.pars))
+        print("Building local grids")
+        localgrids = [
+            grid.get_localgrid(fn.center, fn.get_cutoff_radius(fn.pars))
             for fn in pro_model.fns
         ]
     else:
-        subgrids = None
+        localgrids = None
     # Define initial guess and cost
     print("Optimization")
-    pars0 = np.concatenate([fn.pars for fn in pro_model.fns])
-    cost_grad = partial(
-        ekld, grid=grid, rho=rho, pro_model=pro_model, subgrids=subgrids
-    )
+    with np.errstate(all="raise"):
+        # The errstate is changed to detect potential nasty numerical issues.
+        pars0 = np.concatenate([fn.pars for fn in pro_model.fns])
+        cost_grad = partial(
+            ekld, grid=grid, rho=rho, pro_model=pro_model, localgrids=localgrids
+        )
     # Optimize parameters within the bounds.
     bounds = sum([fn.bounds for fn in pro_model.fns], [])
     optresult = minimize(cost_grad, pars0, method="l-bfgs-b", jac=True, bounds=bounds, options={"maxiter": 10})
@@ -118,7 +115,7 @@ class ProModel:
             ipar += fn.npar
         return result
 
-    def compute_density(self, grid, pars=None, subgrids=None):
+    def compute_density(self, grid, pars=None, localgrids=None):
         # Compute pro-density
         pro = np.zeros_like(grid.weights)
         ipar = 0
@@ -128,12 +125,12 @@ class ProModel:
                 fnpars = fn.pars
             else:
                 fnpars = pars[ipar : ipar + fn.npar]
-            if subgrids is None:
-                subgrid = grid.get_subgrid(fn.center, fn.get_cutoff_radius(fnpars))
+            if localgrids is None:
+                localgrid = grid.get_localgrid(fn.center, fn.get_cutoff_radius(fnpars))
             else:
-                subgrid = subgrids[ifn]
-            # print("  subgrid:", subgrid.size)
-            np.add.at(pro, subgrid.indices, fn.compute(subgrid.points, fnpars))
+                localgrid = localgrids[ifn]
+            # print("  localgrid:", localgrid.size)
+            np.add.at(pro, localgrid.indices, fn.compute(localgrid.points, fnpars))
             ipar += fn.npar
         return pro
 
@@ -152,9 +149,9 @@ class ProModel:
         return pro
 
 
-def ekld(pars, grid, rho, pro_model, subgrids):
+def ekld(pars, grid, rho, pro_model, localgrids):
     """Compute the Extended KL divergence and its gradient."""
-    pro = pro_model.compute_density(grid, pars, subgrids)
+    pro = pro_model.compute_density(grid, pars, localgrids)
     # compute potentially tricky quantities
     sick = (rho < RHO_CUTOFF) | (pro < RHO_CUTOFF)
     with np.errstate(all="ignore"):
@@ -173,13 +170,13 @@ def ekld(pars, grid, rho, pro_model, subgrids):
     gradient = np.zeros_like(pars)
     for ifn, fn in enumerate(pro_model.fns):
         fnpars = pars[ipar : ipar + fn.npar]
-        if subgrids is None:
-            subgrid = grid.get_subgrid(fn.center, fn.get_cutoff_radius(fnpars))
+        if localgrids is None:
+            localgrid = grid.get_localgrid(fn.center, fn.get_cutoff_radius(fnpars))
         else:
-            subgrid = subgrids[ifn]
-        fn_derivatives = fn.compute_derivatives(subgrid.points, fnpars)
+            localgrid = localgrids[ifn]
+        fn_derivatives = fn.compute_derivatives(localgrid.points, fnpars)
         gradient[ipar : ipar + fn.npar] = -np.einsum(
-            "i,i,ji", subgrid.weights, ratio[subgrid.indices], fn_derivatives
+            "i,i,ji", localgrid.weights, ratio[localgrid.indices], fn_derivatives
         ) + fn.compute_population_derivatives(fnpars)
         ipar += fn.npar
     print(
