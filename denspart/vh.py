@@ -54,7 +54,7 @@ def optimize_pro_model(pro_model, grid, rho, gtol=1e-8, ftol=1e-14, rho_cutoff=1
     print("Integral of rho:", pop)
     # Define initial guess and cost
     print("Optimization")
-    print("#Iter         elkd          kld   constraint    grad.norm  cputime (s)")
+    print("#Iter         elkd          kld   constraint     grad.rms  cputime (s)")
     print("-----  -----------  -----------  -----------  -----------  -----------")
     with np.errstate(all="raise"):
         # The errstate is changed to detect potentially nasty numerical issues.
@@ -306,8 +306,13 @@ def ekld(pars, grid, rho, pro_model, localgrids, pop, rho_cutoff=1e-15):
     # Screen output
     time_stop = time.process_time()
     print(
-        "{:5d} {:12.7f} {:12.7f} {:12.7f} {:12.7f} {:12.7f}".format(
-            pro_model.ncompute, ekld, kld, -constraint, np.linalg.norm(gradient),
+        "{:5d} {:12.7f} {:12.7f} {:12.4e} {:12.4e} {:12.7f}".format(
+            pro_model.ncompute,
+            ekld,
+            kld,
+            -constraint,
+            # TODO: projected gradient may be better.
+            np.linalg.norm(gradient) / np.sqrt(len(gradient)),
             time_stop - time_start,
         )
     )
