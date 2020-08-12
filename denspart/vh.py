@@ -87,7 +87,14 @@ def optimize_pro_model(pro_model, grid, rho, gtol=1e-8, ftol=1e-14, rho_cutoff=1
 
 
 class BasisFunction:
-    """Base class for atom-centered basis functions for the pro-molecular density."""
+    """Base class for atom-centered basis functions for the pro-molecular density.
+
+    Each basis function instance stores also its parameters in ``self.pars``,
+    which are always kept up-to-date. This simplifies the code a lot because
+    the methods below can easily access the ``self.pars`` attribute when they
+    need it, instead of having to rely on the caller to pass them in correctly.
+    This is in fact a typical antipattern, but here it works well.
+    """
 
     def __init__(self, iatom, center, pars, bounds):
         """Initialize a basis function.
@@ -101,8 +108,8 @@ class BasisFunction:
         pars
             The initial values of the proparameters for this function.
         bounds
-            List of tuples with (lower, upper) bounds for each parameter. Use
-            -np.inf and np.inf to disable bounds.
+            List of tuples with ``(lower, upper)`` bounds for each parameter.
+            Use ``-np.inf`` and ``np.inf`` to disable bounds.
 
         """
         if len(pars) != len(bounds):
@@ -121,12 +128,12 @@ class BasisFunction:
 
     @property
     def population(self):
-        """The total population of this basis function."""
+        """The population of this basis function."""
         raise NotImplementedError
 
     @property
     def population_derivatives(self):
-        """The total derivatives of the population w.r.t. proparameters."""
+        """The derivatives of the population w.r.t. proparameters."""
         raise NotImplementedError
 
     def get_cutoff_radius(self, rho_cutoff):
@@ -143,6 +150,8 @@ class BasisFunction:
 
 
 class ProModel:
+    """Base class for the promolecular density."""
+
     def __init__(self, atnums, atcoords, fns):
         """Initialize the prodensity model.
 
@@ -184,6 +193,7 @@ class ProModel:
         return sum(fn.population for fn in self.fns)
 
     def assign_pars(self, pars):
+        """Assign the promolecule parameters to the basis functions."""
         ipar = 0
         for ifn, fn in enumerate(self.fns):
             fn.pars[:] = pars[ipar : ipar + fn.npar]
@@ -282,9 +292,12 @@ def ekld(pars, grid, rho, pro_model, localgrids, pop, rho_cutoff=1e-15):
     for ifn, fn in enumerate(pro_model.fns):
         localgrid = localgrids[ifn]
         fn_derivatives = fn.compute_derivatives(localgrid.points)
-        gradient[ipar : ipar + fn.npar] = -np.einsum(
-            "i,i,ji", localgrid.weights, ratio[localgrid.indices], fn_derivatives
-        ) + fn.population_derivatives
+        gradient[ipar : ipar + fn.npar] = (
+            -np.einsum(
+                "i,i,ji", localgrid.weights, ratio[localgrid.indices], fn_derivatives
+            )
+            + fn.population_derivatives
+        )
         ipar += fn.npar
     # Screen output
     print(
