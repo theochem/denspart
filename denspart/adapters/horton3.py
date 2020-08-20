@@ -33,6 +33,8 @@ This module is far from polished and is currently only used for prototyping:
 - Only the spin-summed density is computed, using the post-hf 1RDM if it is
   present. The spin-difference density is ignored.
 
+- It is slow.
+
 """
 
 
@@ -54,7 +56,7 @@ from grid.rtransform import BeckeTF
 __all__ = ["prepare_input"]
 
 
-def prepare_input(iodata, nrad, nang):
+def prepare_input(iodata, nrad, nang, chunk_size):
     """Prepare input for denspart with HORTON3 modules.
 
     Parameters
@@ -66,6 +68,8 @@ def prepare_input(iodata, nrad, nang):
         Number of radial grid points.
     nang
         Number of angular grid points.
+    chunk_size
+        Number of points on which the density is evaluated in one pass.
 
     Returns
     -------
@@ -85,7 +89,7 @@ def prepare_input(iodata, nrad, nang):
             )
         coeffs, occs = iodata.mo.coeffs, iodata.mo.occs
         one_rdm = np.dot(coeffs * occs, coeffs.T)
-    rho = _compute_density(iodata, one_rdm, grid.points)
+    rho = _compute_density(iodata, one_rdm, grid.points, chunk_size)
     return grid, rho
 
 
@@ -106,6 +110,7 @@ def _setup_grid(atnums, atcoords, nrad, nang):
         grid.basegrid.Grid.
 
     """
+    print("Setting up grid")
     becke = BeckeWeights(order=3)
     # Fix for missing radii.
     becke._radii[2] = 0.5
@@ -122,7 +127,7 @@ def _setup_grid(atnums, atcoords, nrad, nang):
     return grid
 
 
-def _compute_density(iodata, one_rdm, points):
+def _compute_density(iodata, one_rdm, points, chunk_size):
     """Evaluate the density on a give set of grid points.
 
     Parameters
@@ -133,6 +138,8 @@ def _compute_density(iodata, one_rdm, points):
         The one-particle reduced density matrix in the atomic orbital basis.
     points: np.ndarray(N, 3)
         A set of grid points.
+    chunk_size
+        Number of points on which the density is evaluated in one pass.
 
     Returns
     -------
@@ -141,7 +148,15 @@ def _compute_density(iodata, one_rdm, points):
 
     """
     basis, coord_types = from_iodata(iodata)
-    rho = evaluate_density(one_rdm, basis, points, coord_type=coord_types)
+    istart = 0
+    rho = np.zeros(len(points))
+    while istart < len(points):
+        print("Computing density: {} / {}".format(istart, len(rho)))
+        iend = istart + chunk_size
+        rho[istart:iend] = evaluate_density(
+            one_rdm, basis, points[istart:iend], coord_type=coord_types
+        )
+        istart = iend
     assert (rho >= 0).all()
     return rho
 
@@ -149,8 +164,9 @@ def _compute_density(iodata, one_rdm, points):
 def main():
     """Command-line interface."""
     args = parse_args()
+    print("Loading file.")
     iodata = load_one(args.fn_wfn)
-    grid, rho = prepare_input(iodata, args.nrad, args.nang)
+    grid, rho = prepare_input(iodata, args.nrad, args.nang, args.chunk_size)
     np.savez(
         args.fn_rho,
         **{
@@ -167,7 +183,9 @@ def main():
 
 def parse_args():
     """Parse command-line arguments."""
-    description = "Setup a default integration grid and compute the density with HORTON3."
+    description = (
+        "Setup a default integration grid and compute the density with HORTON3."
+    )
     parser = argparse.ArgumentParser(
         prog="denspart-rho-horton3", description=description
     )
@@ -189,5 +207,13 @@ def parse_args():
         type=int,
         default=194,
         help="Number of angular grid points. [default=%(default)s]",
+    )
+    parser.add_argument(
+        "-c",
+        "--chunk-size",
+        type=int,
+        default=10000,
+        help="Number points on which the density is computed in one pass. "
+        "[default=%(default)s]",
     )
     return parser.parse_args()
