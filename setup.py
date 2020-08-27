@@ -31,7 +31,7 @@ from setuptools import setup
 
 def get_readme():
     """Load README.rst for display on PyPI."""
-    with open("README.md") as fhandle:
+    with open("README.rst") as fhandle:
         return fhandle.read()
 
 
