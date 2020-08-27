@@ -198,10 +198,19 @@ class ProModel:
             charges[fn.iatom] -= fn.population
         return charges
 
-    @property
-    def results(self):
+    def get_results(self):
         """A dictionary with additional results derived from the pro-parameters."""
-        return {}
+        # Number of functions per atom
+        atnfn = np.zeros(self.natom, dtype=int)
+        atnpar = np.zeros(self.natom, dtype=int)
+        for fn in self.fns:
+            atnfn[fn.iatom] += 1
+            atnpar[fn.iatom] += len(fn.pars)
+        return {
+            "atnfn": atnfn,
+            "atnpar": atnpar,
+            "propars": np.concatenate([fn.pars for fn in self.fns]),
+        }
 
     @property
     def population(self):
@@ -258,6 +267,18 @@ class ProModel:
             if fn.iatom == iatom:
                 pro += fn.compute(grid.points)
         return pro
+
+    def pprint(self):
+        print(" ifn iatom  atn       parameters...")
+        for ifn, fn in enumerate(self.fns):
+            print(
+                "{:4d}  {:4d}  {:3d}  {:s}".format(
+                    ifn,
+                    fn.iatom,
+                    self.atnums[fn.iatom],
+                    " ".join(format(par, "15.8f") for par in fn.pars),
+                )
+            )
 
 
 def ekld(pars, grid, rho, pro_model, localgrids, pop, rho_cutoff=1e-15):

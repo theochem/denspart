@@ -47,6 +47,7 @@ setup(
         "console_scripts": [
             "denspart-rho-horton3 = denspart.adapters.horton3:main",
             "denspart = denspart.__main__:main",
+            "denspart-write-extxyz = denspart.utils.write_extxyz:main",
         ]
     },
     classifiers=[

@@ -109,9 +109,9 @@ class MBISProModel(ProModel):
                 fns.append(ExponentialFunction(iatom, atcoord, [population, exponent]))
         super().__init__(atnums, atcoords, fns)
 
-    @property
-    def results(self):
+    def get_results(self):
         """A dictionary with additional results derived from the pro-parameters."""
+        results = super().get_results()
         valence_charges = np.zeros(self.natom, dtype=float)
         valence_widths = np.zeros(self.natom, dtype=float)
         for fn in self.fns:
@@ -120,11 +120,14 @@ class MBISProModel(ProModel):
                 valence_widths[fn.iatom] = width
                 valence_charges[fn.iatom] = -fn.pars[0]
         core_charges = self.charges - valence_charges
-        return {
-            "core_charges": core_charges,
-            "valence_charges": valence_charges,
-            "valence_widths": valence_widths,
-        }
+        results.update(
+            {
+                "core_charges": core_charges,
+                "valence_charges": valence_charges,
+                "valence_widths": valence_widths,
+            }
+        )
+        return results
 
 
 INITIAL_MBIS_PARAMETERS = {

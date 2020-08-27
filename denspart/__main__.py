@@ -32,7 +32,7 @@ from denspart.properties import compute_rcubed
 def main():
     """Partitioning command-line interface."""
     args = parse_args()
-    data = np.load(args.fn_rho)
+    data = np.load(args.in_npz)
     if data["cellvecs"].size == 0:
         grid = Grid(data["points"], data["weights"])
     else:
@@ -48,28 +48,34 @@ def main():
         args.ftol,
         args.rho_cutoff,
     )
-    print("Properties")
-    results = {
-        "charges": pro_model.charges,
-        "rcubed": compute_rcubed(pro_model, grid, rho, localgrids),
-        "gtol": args.gtol,
-        "ftol": args.ftol,
-        "rho_cutoff": args.rho_cutoff,
-    }
-    results.update(pro_model.results)
-    print("Charges:")
-    print(results["charges"])
-    np.savez(args.fn_results, **results)
+    print("Promodel")
+    pro_model.pprint()
+    print("Computing additional properties")
+    results = pro_model.get_results()
+    results.update(
+        {
+            "atnums": data["atnums"],
+            "atcoords": data["atcoords"],
+            "charges": pro_model.charges,
+            "rcubed": compute_rcubed(pro_model, grid, rho, localgrids),
+            "gtol": args.gtol,
+            "ftol": args.ftol,
+            "rho_cutoff": args.rho_cutoff,
+        }
+    )
+    # TODO: make it easy to reconstruct a pro-model from the saved results.
+    # This would at least require the class name of the pro-model to be stored.
+    # Storing as a pickle would make this easy, but is insufficient for
+    # long-term archival.
+    np.savez(args.out_npz, **results)
 
 
 def parse_args():
     """Parse command-line arguments."""
     description = "Density partitioning of a given density on a grid."
     parser = argparse.ArgumentParser(prog="denspart", description=description)
-    parser.add_argument("fn_rho", help="The NPZ file with grid and density.")
-    parser.add_argument(
-        "fn_results", help="The NPZ file in which resutls will be stored."
-    )
+    parser.add_argument("in_npz", help="The NPZ file with grid and density.")
+    parser.add_argument("out_npz", help="The NPZ file in which resutls will be stored.")
     parser.add_argument(
         "--gtol",
         type=float,
