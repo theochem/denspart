@@ -138,18 +138,18 @@ class BasisFunction:
         self.bounds = bounds
 
     @property
-    def npar(self):
+    def npar(self):  # noqa: D401
         """Number of parameters."""
         return len(self.pars)
 
     @property
-    def population(self):
-        """The population of this basis function."""
+    def population(self):  # noqa: D401
+        """Population of this basis function."""
         raise NotImplementedError
 
     @property
-    def population_derivatives(self):
-        """The derivatives of the population w.r.t. proparameters."""
+    def population_derivatives(self):  # noqa: D401
+        """Derivatives of the population w.r.t. proparameters."""
         raise NotImplementedError
 
     def get_cutoff_radius(self, rho_cutoff):
@@ -186,12 +186,12 @@ class ProModel:
         self.ncompute = 0
 
     @property
-    def natom(self):
-        """The number of atoms."""
+    def natom(self):  # noqa: D401
+        """Number of atoms."""
         return len(self.atnums)
 
     @property
-    def charges(self):
+    def charges(self):  # noqa: D401
         """Proatomic charges."""
         charges = np.array(self.atnums, dtype=float)
         for fn in self.fns:
@@ -199,7 +199,7 @@ class ProModel:
         return charges
 
     def get_results(self):
-        """A dictionary with additional results derived from the pro-parameters."""
+        """Return dictionary with additional results derived from the pro-parameters."""
         # Number of functions per atom
         atnfn = np.zeros(self.natom, dtype=int)
         atnpar = np.zeros(self.natom, dtype=int)
@@ -212,9 +212,9 @@ class ProModel:
             "propars": np.concatenate([fn.pars for fn in self.fns]),
         }
 
-    @property
+    @property  # noqa: D401
     def population(self):
-        """The promolecular population."""
+        """Promolecular population."""
         return sum(fn.population for fn in self.fns)
 
     def assign_pars(self, pars):
@@ -269,6 +269,7 @@ class ProModel:
         return pro
 
     def pprint(self):
+        """Print a table with the pro-parameters."""
         print(" ifn iatom  atn       parameters...")
         for ifn, fn in enumerate(self.fns):
             print(
@@ -331,10 +332,10 @@ def ekld(pars, grid, rho, pro_model, localgrids, pop, rho_cutoff=1e-15):
         localgrid = localgrids[ifn]
         fn_derivatives = fn.compute_derivatives(localgrid.points)
         gradient[ipar : ipar + fn.npar] = (
-            -np.einsum(
+            fn.population_derivatives
+            - np.einsum(
                 "i,i,ji", localgrid.weights, ratio[localgrid.indices], fn_derivatives
             )
-            + fn.population_derivatives
         )
         ipar += fn.npar
     # Screen output

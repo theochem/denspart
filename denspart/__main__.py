@@ -29,6 +29,9 @@ from denspart.mbis import partition
 from denspart.properties import compute_rcubed
 
 
+__all__ = ["main"]
+
+
 def main():
     """Partitioning command-line interface."""
     args = parse_args()

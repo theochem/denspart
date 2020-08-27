@@ -1,0 +1,20 @@
+linters:
+  - import:
+      packages: ['denspart']
+  - namespace:
+      filefilter: ['- */__init__.py', '- */__main__.py', '- */test_*.py',
+                   '- *setup.py', '- tmp/*', '- doc/conf.py',
+                   '- denspart/adapters/horton3.py', 
+                   '- denspart/utils/write_extxyz.py', 
+                   '+ *.py']
+  - pylint:
+  - black:
+  - pydocstyle:
+  - whitespace:
+  - header:
+      extra: []
+      shebang: '#!/usr/bin/env python3'
+  - yamllint:
+      filefilter: ['- *conda.recipe/meta.yaml', '+ *.yml', '+ *.yaml']
+  - rst-lint:
+      filefilter: ['+ README.rst']

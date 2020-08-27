@@ -93,6 +93,7 @@ def prepare_input(iodata, nrad, nang, chunk_size):
     return grid, rho
 
 
+# pylint: disable=protected-access
 def _setup_grid(atnums, atcoords, nrad, nang):
     """Set up a simple molecular integration grid for a given molecular geometry.
 
@@ -177,7 +178,7 @@ def main():
             "weights": grid.weights,
             "rho": rho,
             "cellvecs": np.zeros((0, 3)),
-        }
+        },
     )
 
 

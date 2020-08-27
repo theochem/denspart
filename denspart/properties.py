@@ -22,6 +22,9 @@
 import numpy as np
 
 
+__all__ = ["compute_rcubed"]
+
+
 def compute_rcubed(pro_model, grid, rho, localgrids):
     """Compute expectation values of r^3 for each atom.
 

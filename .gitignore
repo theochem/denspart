@@ -1,6 +1,10 @@
 *.npz
 *.h5
 tmp
+denspart/version.py
+activate-*-dev-python-*.sh
+coverage*.xml
+.coverage
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

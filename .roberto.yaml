@@ -1,0 +1,21 @@
+abs: true  # Force absolute comparison for cardboardlint
+project:
+  name: denspart
+  pip_requirements:
+    - git+https://github.com/theochem/iodata.git@master
+    - git+https://github.com/theochem/grid.git@master
+    - git+https://github.com/theochem/gbasis.git@master
+  packages:
+    - conda_name: denspart
+      tools:
+        - write-py-version
+        - cardboardlint-static
+        - build-py-inplace
+        - cardboardlint-dynamic
+        - pytest
+        - build-sphinx-doc
+        - build-py-source
+        - build-conda
+        - deploy-pypi
+        - deploy-conda
+        - deploy-github

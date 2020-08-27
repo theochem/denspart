@@ -29,6 +29,9 @@ from iodata.formats.xyz import DEFAULT_ATOM_COLUMNS
 from iodata.utils import angstrom
 
 
+__all__ = ["main"]
+
+# pylint: disable=unnecessary-lambda
 ATOM_COLUMNS = DEFAULT_ATOM_COLUMNS + [
     (
         "atffparams",
@@ -74,7 +77,7 @@ ATOM_COLUMNS = DEFAULT_ATOM_COLUMNS + [
 
 
 def main():
-    """Main script."""
+    """Convert results to extended XYZ, main script."""
     args = parse_args()
     results = np.load(args.out_npz)
     iodata = IOData(

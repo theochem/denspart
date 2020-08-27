@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, see <http://www.gnu.org/licenses/>
 # --
+# pylint: disable=too-many-lines
 """Minimal Basis Iterative Stockholder."""
 
 
@@ -101,6 +102,8 @@ class ExponentialFunction(BasisFunction):
 
 
 class MBISProModel(ProModel):
+    """ProModel for MBIS partitioning."""
+
     def __init__(self, atnums, atcoords):
         """Construct an MBIS ProModel with a sensible initial guess."""
         fns = []
@@ -110,7 +113,7 @@ class MBISProModel(ProModel):
         super().__init__(atnums, atcoords, fns)
 
     def get_results(self):
-        """A dictionary with additional results derived from the pro-parameters."""
+        """Return dictionary with additional results derived from the pro-parameters."""
         results = super().get_results()
         valence_charges = np.zeros(self.natom, dtype=float)
         valence_widths = np.zeros(self.natom, dtype=float)
