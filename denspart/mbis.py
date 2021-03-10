@@ -19,8 +19,10 @@
 # pylint: disable=too-many-lines
 """Minimal Basis Iterative Stockholder."""
 
-
 import numpy as np
+from numba import jit
+
+from time import time as tm
 
 from .vh import (
     BasisFunction,
@@ -72,6 +74,7 @@ class ExponentialFunction(BasisFunction):
         if len(pars) != 2 and not (pars >= 0).all():
             raise TypeError("Expecting two positive parameters.")
         super().__init__(iatom, center, pars, [(0.1, 1e2), (0.1, 1e3)])
+        self.dists = None
 
     @property
     def population(self):
@@ -87,18 +90,30 @@ class ExponentialFunction(BasisFunction):
         population, exponent = self.pars
         return (np.log(population) - np.log(rho_cutoff)) / exponent
 
-    def compute(self, points):
-        dists = np.sqrt(((points - self.center) ** 2).sum(axis=1))
-        population, exponent = self.pars
-        return population * np.exp(-exponent * dists) * (exponent ** 3 / 8 / np.pi)
+    def compute_dists(self, points, new_points):
+        if (self.dists is None) or new_points:
+            self.dists = np.sqrt(((points - self.center) ** 2).sum(axis=1))
+        return self.dists
 
-    def compute_derivatives(self, points):
-        dists = np.sqrt(((points - self.center) ** 2).sum(axis=1))
+    def compute(self, points, new_points=False):
         population, exponent = self.pars
-        factor = np.exp(-exponent * dists) * (exponent ** 2 / 8 / np.pi)
-        return np.array(
-            [factor * exponent, population * factor * (3 - dists * exponent)]
-        )
+        dists = self.compute_dists(points, new_points)
+        return jit_compute(dists, population, exponent)
+
+    def compute_derivatives(self, points, new_points=False):
+        population, exponent = self.pars
+        dists = self.compute_dists(points, new_points)
+        f1, f2 = jit_compute_derivatives(dists, population, exponent)
+        return np.array([f1, f2])
+
+@jit(fastmath=True, nopython=True)
+def jit_compute(dists, population, exponent):
+    return population * np.exp(-exponent * dists) * (exponent ** 3 / 8 / np.pi)
+
+@jit(fastmath=True, nopython=True)
+def jit_compute_derivatives(dists, population, exponent):
+    factor = np.exp(-exponent * dists) * (exponent ** 2 / 8 / np.pi)
+    return factor * exponent, population * factor * (3 - dists * exponent)
 
 
 class MBISProModel(ProModel):
@@ -119,9 +134,16 @@ class MBISProModel(ProModel):
         valence_widths = np.zeros(self.natom, dtype=float)
         for fn in self.fns:
             width = 1 / fn.pars[1]
-            if width > valence_widths[fn.iatom]:
+            # Check for degenerate exponents and merge them
+            # In this case, average the valence widths and sum the valence charge
+            if width - 1e-4 < valence_widths[fn.iatom] and width + 1e-4 > valence_widths[fn.iatom]:
+                print('Merging shells on atom %d'%fn.iatom)
+                valence_widths[fn.iatom] = 0.5*(valence_widths[fn.iatom] + width)
+                valence_charges[fn.iatom] -= fn.pars[0]
+            elif width > valence_widths[fn.iatom]:
                 valence_widths[fn.iatom] = width
                 valence_charges[fn.iatom] = -fn.pars[0]
+
         core_charges = self.charges - valence_charges
         results.update(
             {

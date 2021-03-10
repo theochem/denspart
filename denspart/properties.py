@@ -22,11 +22,11 @@
 import numpy as np
 
 
-__all__ = ["compute_rcubed"]
+__all__ = ["compute_rexp"]
 
 
-def compute_rcubed(pro_model, grid, rho, localgrids):
-    """Compute expectation values of r^3 for each atom.
+def compute_rexp(pro_model, grid, rho, localgrids, N_max=4):
+    """Compute expectation values of r^N for each atom.
 
     Parameters
     ----------
@@ -38,20 +38,23 @@ def compute_rcubed(pro_model, grid, rho, localgrids):
         The electron density.
     localgrids
         A list of local grids, one for each basis function.
+    N_max
+        Maximum moment to be computed.
 
     Returns
     -------
-    rcubed
-        An array with expectation values of r^3.
+    rexp
+        An array with expectation values of r^N for N from 0 to N_max.
 
     """
     pro = pro_model.compute_density(grid, localgrids)
-    result = np.zeros(pro_model.natom)
+    result = np.zeros((pro_model.natom, N_max+1))
     for iatom, atcoord in enumerate(pro_model.atcoords):
         # TODO: improve cutoff
         localgrid = grid.get_localgrid(atcoord, 8.0)
         dists = np.linalg.norm(localgrid.points - atcoord, axis=1)
         pro_atom = pro_model.compute_proatom(iatom, localgrid)
         ratio = pro_atom / pro[localgrid.indices]
-        result[iatom] = localgrid.integrate(rho[localgrid.indices], dists ** 3, ratio)
+        for N in np.arange(N_max+1):
+            result[iatom, N] = localgrid.integrate(rho[localgrid.indices], dists ** N, ratio)
     return result
