@@ -161,7 +161,12 @@ def compute_augmentation_spheres(grid_data, setups, atoms, numbers, coordinates,
         setupg = setups[id_setup]
 
         rad = setupg['nc_radgrid']
-        atgrid_short = AtomGrid.from_predefined(numbers[iatom], rad, grid_type=grid_size, center=coordinates[iatom])
+        atgrid_short = AtomGrid.from_predefined(
+            numbers[iatom] if numbers[iatom] <= 36 else 27,
+            rad,
+            grid_type=grid_size,
+            center=coordinates[iatom]
+        )
 
         rhoc, rhoct, rhov, rhovt, spinrhov, spinrhovt = \
                 eval_correction(atgrid_short, atomg, setupg, coordinates[iatom])
