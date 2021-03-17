@@ -24,9 +24,10 @@ import argparse
 import numpy as np
 
 from grid.basegrid import Grid
+from grid.periodicgrid import PeriodicGrid
 
 from denspart.mbis import partition
-from denspart.properties import compute_rcubed
+from denspart.properties import compute_rexp
 
 
 __all__ = ["main"]
@@ -39,9 +40,10 @@ def main():
     if data["cellvecs"].size == 0:
         grid = Grid(data["points"], data["weights"])
     else:
-        raise NotImplementedError
+        print('Using Periodic Grid')
+        grid = PeriodicGrid(data["points"], data["weights"], data["cellvecs"], wrap=True)
     rho = data["rho"]
-    print("MBIS partitioning")
+    print("MBIS partitioning --")
     pro_model, localgrids = partition(
         data["atnums"],
         data["atcoords"],
@@ -60,7 +62,7 @@ def main():
             "atnums": data["atnums"],
             "atcoords": data["atcoords"],
             "charges": pro_model.charges,
-            "rcubed": compute_rcubed(pro_model, grid, rho, localgrids),
+            "radial_moments": compute_rexp(pro_model, grid, rho, localgrids),
             "gtol": args.gtol,
             "ftol": args.ftol,
             "rho_cutoff": args.rho_cutoff,
@@ -71,6 +73,7 @@ def main():
     # Storing as a pickle would make this easy, but is insufficient for
     # long-term archival.
     np.savez(args.out_npz, **results)
+    print('Sum of charges: ', sum(pro_model.charges))
 
 
 def parse_args():
@@ -88,7 +91,7 @@ def parse_args():
     parser.add_argument(
         "--ftol",
         type=float,
-        default=1e-14,
+        default=1e-12,
         help="ftol convergence criterion for L-BFGS-B. [default=%(default)s]",
     )
     parser.add_argument(

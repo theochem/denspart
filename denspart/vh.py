@@ -26,8 +26,8 @@ from functools import partial
 import time
 
 import numpy as np
-from scipy.optimize import minimize
-
+from scipy.optimize import minimize, basinhopping
+from numba import jit
 
 __all__ = ["optimize_pro_model", "BasisFunction", "ProModel", "ekld"]
 
@@ -82,6 +82,18 @@ def optimize_pro_model(pro_model, grid, rho, gtol=1e-8, ftol=1e-14, rho_cutoff=1
         # The errstate is changed to detect potentially nasty numerical issues.
         # Optimize parameters within the bounds.
         bounds = sum([fn.bounds for fn in pro_model.fns], [])
+
+        optresult = minimize(
+            cost_grad,
+            pars0,
+            method="trust-constr",
+            jac=True,
+            hess='2-point',
+            bounds=bounds,
+            options={"gtol": gtol},
+        )
+
+        '''
         optresult = minimize(
             cost_grad,
             pars0,
@@ -90,9 +102,11 @@ def optimize_pro_model(pro_model, grid, rho, gtol=1e-8, ftol=1e-14, rho_cutoff=1
             bounds=bounds,
             options={"gtol": gtol, "ftol": ftol},
         )
+        '''
+
     print("-----  -----------  -----------  -----------  -----------  -----------")
     # Check for convergence.
-    print('Optimizer message: "{}"'.format(optresult.message.decode("utf-8")))
+    print('Optimizer message: "{}"'.format(optresult.message))
     if not optresult.success:
         raise RuntimeError("Convergence failure.")
     # Wrap up
@@ -265,7 +279,7 @@ class ProModel:
         pro = np.zeros_like(grid.weights)
         for fn in self.fns:
             if fn.iatom == iatom:
-                pro += fn.compute(grid.points)
+                pro += fn.compute(grid.points, new_points=True)
         return pro
 
     def pprint(self):
@@ -312,8 +326,10 @@ def ekld(pars, grid, rho, pro_model, localgrids, pop, rho_cutoff=1e-15):
 
     """
     time_start = time.process_time()
+
     pro_model.assign_pars(pars)
     pro = pro_model.compute_density(grid, localgrids)
+
     # Compute potentially tricky quantities.
     sick = (rho < rho_cutoff) | (pro < rho_cutoff)
     with np.errstate(all="ignore"):
@@ -323,11 +339,13 @@ def ekld(pars, grid, rho, pro_model, localgrids, pop, rho_cutoff=1e-15):
     ratio[sick] = 0.0
     # Function value
     kld = np.einsum("i,i,i", grid.weights, rho, lnratio)
+
     constraint = pop - pro_model.population
     result = kld - constraint
     # Gradient
     ipar = 0
     gradient = np.zeros_like(pars)
+
     for ifn, fn in enumerate(pro_model.fns):
         localgrid = localgrids[ifn]
         fn_derivatives = fn.compute_derivatives(localgrid.points)
@@ -338,6 +356,7 @@ def ekld(pars, grid, rho, pro_model, localgrids, pop, rho_cutoff=1e-15):
             )
         )
         ipar += fn.npar
+
     # Screen output
     time_stop = time.process_time()
     print(
