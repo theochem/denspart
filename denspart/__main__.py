@@ -27,7 +27,7 @@ from grid.basegrid import Grid
 from grid.periodicgrid import PeriodicGrid
 
 from denspart.mbis import partition
-from denspart.properties import compute_rexp
+from denspart.properties import compute_radial_moments
 
 
 __all__ = ["main"]
@@ -40,8 +40,10 @@ def main():
     if data["cellvecs"].size == 0:
         grid = Grid(data["points"], data["weights"])
     else:
-        print('Using Periodic Grid')
-        grid = PeriodicGrid(data["points"], data["weights"], data["cellvecs"], wrap=True)
+        print("Using Periodic Grid")
+        grid = PeriodicGrid(
+            data["points"], data["weights"], data["cellvecs"], wrap=True
+        )
     density = data["density"]
     print("MBIS partitioning --")
     pro_model, localgrids = partition(
@@ -50,7 +52,6 @@ def main():
         grid,
         density,
         args.gtol,
-        args.ftol,
         args.density_cutoff,
     )
     print("Promodel")
@@ -62,9 +63,10 @@ def main():
             "atnums": data["atnums"],
             "atcoords": data["atcoords"],
             "charges": pro_model.charges,
-            "radial_moments": compute_rexp(pro_model, grid, density, localgrids),
+            "radial_moments": compute_radial_moments(
+                pro_model, grid, density, localgrids
+            ),
             "gtol": args.gtol,
-            "ftol": args.ftol,
             "density_cutoff": args.density_cutoff,
         }
     )
@@ -73,7 +75,7 @@ def main():
     # Storing as a pickle would make this easy, but is insufficient for
     # long-term archival.
     np.savez(args.out_npz, **results)
-    print('Sum of charges: ', sum(pro_model.charges))
+    print("Sum of charges: ", sum(pro_model.charges))
 
 
 def parse_args():
@@ -87,12 +89,6 @@ def parse_args():
         type=float,
         default=1e-8,
         help="gtol convergence criterion for L-BFGS-B. [default=%(default)s]",
-    )
-    parser.add_argument(
-        "--ftol",
-        type=float,
-        default=1e-12,
-        help="ftol convergence criterion for L-BFGS-B. [default=%(default)s]",
     )
     parser.add_argument(
         "-c" "--density-cutoff",

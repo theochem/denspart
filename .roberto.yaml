@@ -6,7 +6,7 @@ project:
     - git+https://github.com/theochem/grid.git@master
     - git+https://github.com/theochem/gbasis.git@master
   packages:
-    - conda_name: denspart
+    - dist_name: denspart
       tools:
         - write-py-version
         - cardboardlint-static

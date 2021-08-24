@@ -20,9 +20,11 @@
 """Minimal Basis Iterative Stockholder."""
 
 import numpy as np
-from numba import jit
 
-from time import time as tm
+try:
+    from numba import jit
+except ImportError:
+    jit = None
 
 from .vh import (
     BasisFunction,
@@ -34,7 +36,7 @@ from .vh import (
 __all__ = ["partition"]
 
 
-def partition(atnums, atcoords, grid, density, gtol=1e-8, ftol=1e-14, density_cutoff=1e-10):
+def partition(atnums, atcoords, grid, density, gtol=1e-8, density_cutoff=1e-10):
     """Perform a basic MBIS partitioning.
 
     Parameters
@@ -49,8 +51,6 @@ def partition(atnums, atcoords, grid, density, gtol=1e-8, ftol=1e-14, density_cu
         The electron density on the grid
     gtol
         Convergence parameter gtol of SciPy's L-BFGS-B minimizer.
-    ftol
-        Convergence parameter ftol of SciPy's L-BFGS-B minimizer.
     density_cutoff
         Density cutoff used to estimated sizes of local grids. Set to zero for
         whole-grid integrations. (This will not work for periodic systems.)
@@ -64,11 +64,14 @@ def partition(atnums, atcoords, grid, density, gtol=1e-8, ftol=1e-14, density_cu
     # TODO: this function does not do much. It might be abandonded in favor of
     # some logic in the CLI code.
     pro_model = MBISProModel(atnums, atcoords)
-    return optimize_pro_model(pro_model, grid, density, gtol, ftol, density_cutoff)
+    return optimize_pro_model(pro_model, grid, density, gtol, density_cutoff)
 
 
 class ExponentialFunction(BasisFunction):
-    """Exponential basis function for the MBIS pro density."""
+    """Exponential basis function for the MBIS pro density.
+
+    See BasisFunction base class for API documentation.
+    """
 
     def __init__(self, iatom, center, pars):
         if len(pars) != 2 and not (pars >= 0).all():
@@ -90,30 +93,41 @@ class ExponentialFunction(BasisFunction):
         population, exponent = self.pars
         return (np.log(population) - np.log(density_cutoff)) / exponent
 
-    def compute_dists(self, points, new_points):
-        if (self.dists is None) or new_points:
-            self.dists = np.sqrt(((points - self.center) ** 2).sum(axis=1))
-        return self.dists
+    def _compute_dists(self, points):
+        # TODO: add nicer caching mechanism to avoid recomputation of distances.
+        return np.linalg.norm(points - self.center, axis=1)
 
-    def compute(self, points, new_points=False):
+    def compute(self, points):
         population, exponent = self.pars
-        dists = self.compute_dists(points, new_points)
+        dists = self._compute_dists(points)
         return jit_compute(dists, population, exponent)
 
-    def compute_derivatives(self, points, new_points=False):
+    def compute_derivatives(self, points):
         population, exponent = self.pars
-        dists = self.compute_dists(points, new_points)
-        f1, f2 = jit_compute_derivatives(dists, population, exponent)
-        return np.array([f1, f2])
+        dists = self._compute_dists(points)
+        return np.array(jit_compute_derivatives(dists, population, exponent))
 
-@jit(fastmath=True, nopython=True)
+
 def jit_compute(dists, population, exponent):
+    """Compute the exponential basis function.
+
+    This function is taken out of the ExponentialFunction class to make it easily jit-able.
+    """
     return population * np.exp(-exponent * dists) * (exponent ** 3 / 8 / np.pi)
 
-@jit(fastmath=True, nopython=True)
+
 def jit_compute_derivatives(dists, population, exponent):
+    """Compute the derivatives of the exponential basis function.
+
+    This function is taken out of the ExponentialFunction class to make it easily jit-able.
+    """
     factor = np.exp(-exponent * dists) * (exponent ** 2 / 8 / np.pi)
     return factor * exponent, population * factor * (3 - dists * exponent)
+
+
+if jit is not None:
+    jit_compute = jit(fastmath=True, nopython=True)(jit_compute)
+    jit_compute_derivatives = jit(fastmath=True, nopython=True)(jit_compute_derivatives)
 
 
 class MBISProModel(ProModel):
@@ -136,9 +150,12 @@ class MBISProModel(ProModel):
             width = 1 / fn.pars[1]
             # Check for degenerate exponents and merge them
             # In this case, average the valence widths and sum the valence charge
-            if width - 1e-4 < valence_widths[fn.iatom] and width + 1e-4 > valence_widths[fn.iatom]:
-                print('Merging shells on atom %d'%fn.iatom)
-                valence_widths[fn.iatom] = 0.5*(valence_widths[fn.iatom] + width)
+            if (
+                width - 1e-4 < valence_widths[fn.iatom]
+                and width + 1e-4 > valence_widths[fn.iatom]
+            ):
+                print("Merging shells on atom %d" % fn.iatom)
+                valence_widths[fn.iatom] = 0.5 * (valence_widths[fn.iatom] + width)
                 valence_charges[fn.iatom] -= fn.pars[0]
             elif width > valence_widths[fn.iatom]:
                 valence_widths[fn.iatom] = width

@@ -26,14 +26,14 @@ from functools import partial
 import time
 
 import numpy as np
-from scipy.optimize import minimize, basinhopping
-from numba import jit
+from scipy.optimize import minimize
+
 
 __all__ = ["optimize_pro_model", "BasisFunction", "ProModel", "ekld"]
 
 
-def optimize_pro_model(pro_model, grid, density, gtol=1e-8, ftol=1e-14, density_cutoff=1e-10):
-    """Optimize the promodel using the L-BFGS-B minimizer from SciPy.
+def optimize_pro_model(pro_model, grid, density, gtol=1e-8, density_cutoff=1e-10):
+    """Optimize the promodel using the trust-constr minimizer from SciPy.
 
     Parameters
     ----------
@@ -45,9 +45,7 @@ def optimize_pro_model(pro_model, grid, density, gtol=1e-8, ftol=1e-14, density_
     density
         The electron density evaluated on the grid.
     gtol
-        Convergence parameter gtol of SciPy's L-BFGS-B minimizer.
-    ftol
-        Convergence parameter ftol of SciPy's L-BFGS-B minimizer.
+        Convergence parameter gtol of SciPy's trust-constr minimizer.
     density_cutoff
         Density cutoff used to estimated sizes of local grids. Set to zero for
         whole-grid integrations. (This will not work for periodic systems.)
@@ -76,7 +74,12 @@ def optimize_pro_model(pro_model, grid, density, gtol=1e-8, ftol=1e-14, density_
     print("-----  -----------  -----------  -----------  -----------  -----------")
     pars0 = np.concatenate([fn.pars for fn in pro_model.fns])
     cost_grad = partial(
-        ekld, grid=grid, density=density, pro_model=pro_model, localgrids=localgrids, pop=pop,
+        ekld,
+        grid=grid,
+        density=density,
+        pro_model=pro_model,
+        localgrids=localgrids,
+        pop=pop,
     )
     with np.errstate(all="raise"):
         # The errstate is changed to detect potentially nasty numerical issues.
@@ -88,21 +91,10 @@ def optimize_pro_model(pro_model, grid, density, gtol=1e-8, ftol=1e-14, density_
             pars0,
             method="trust-constr",
             jac=True,
-            hess='2-point',
+            hess="2-point",
             bounds=bounds,
             options={"gtol": gtol},
         )
-
-        '''
-        optresult = minimize(
-            cost_grad,
-            pars0,
-            method="l-bfgs-b",
-            jac=True,
-            bounds=bounds,
-            options={"gtol": gtol, "ftol": ftol},
-        )
-        '''
 
     print("-----  -----------  -----------  -----------  -----------  -----------")
     # Check for convergence.
@@ -279,7 +271,7 @@ class ProModel:
         pro = np.zeros_like(grid.weights)
         for fn in self.fns:
             if fn.iatom == iatom:
-                pro += fn.compute(grid.points, new_points=True)
+                pro += fn.compute(grid.points)
         return pro
 
     def pprint(self):
@@ -349,11 +341,8 @@ def ekld(pars, grid, density, pro_model, localgrids, pop, density_cutoff=1e-15):
     for ifn, fn in enumerate(pro_model.fns):
         localgrid = localgrids[ifn]
         fn_derivatives = fn.compute_derivatives(localgrid.points)
-        gradient[ipar : ipar + fn.npar] = (
-            fn.population_derivatives
-            - np.einsum(
-                "i,i,ji", localgrid.weights, ratio[localgrid.indices], fn_derivatives
-            )
+        gradient[ipar : ipar + fn.npar] = fn.population_derivatives - np.einsum(
+            "i,i,ji", localgrid.weights, ratio[localgrid.indices], fn_derivatives
         )
         ipar += fn.npar
 

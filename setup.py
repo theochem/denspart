@@ -76,5 +76,5 @@ setup(
         "Topic :: Scientific/Engineering :: Chemistry",
         "Intended Audience :: Science/Research",
     ],
-    install_requires=["numpy>=1.0"],
+    install_requires=["numpy>=1.0", "iodata", "grid", "gbasis"],
 )

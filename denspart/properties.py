@@ -22,11 +22,11 @@
 import numpy as np
 
 
-__all__ = ["compute_rexp"]
+__all__ = ["compute_radial_moments"]
 
 
-def compute_rexp(pro_model, grid, density, localgrids, N_max=4):
-    """Compute expectation values of r^N for each atom.
+def compute_radial_moments(pro_model, grid, density, localgrids, nmax=4):
+    """Compute expectation values of r^n for each atom.
 
     Parameters
     ----------
@@ -38,23 +38,25 @@ def compute_rexp(pro_model, grid, density, localgrids, N_max=4):
         The electron density.
     localgrids
         A list of local grids, one for each basis function.
-    N_max
-        Maximum moment to be computed.
+    nmax
+        Maximum degree of the radial moment to be computed.
 
     Returns
     -------
     rexp
-        An array with expectation values of r^N for N from 0 to N_max.
+        An array with expectation values of r^n for n from 0 to nmax.
 
     """
     pro = pro_model.compute_density(grid, localgrids)
-    result = np.zeros((pro_model.natom, N_max+1))
+    result = np.zeros((pro_model.natom, nmax + 1))
     for iatom, atcoord in enumerate(pro_model.atcoords):
         # TODO: improve cutoff
         localgrid = grid.get_localgrid(atcoord, 8.0)
         dists = np.linalg.norm(localgrid.points - atcoord, axis=1)
         pro_atom = pro_model.compute_proatom(iatom, localgrid)
         ratio = pro_atom / pro[localgrid.indices]
-        for N in np.arange(N_max+1):
-            result[iatom, N] = localgrid.integrate(density[localgrid.indices], dists ** N, ratio)
+        for degree in np.arange(nmax + 1):
+            result[iatom, degree] = localgrid.integrate(
+                density[localgrid.indices], dists ** degree, ratio
+            )
     return result
