@@ -48,7 +48,7 @@ from gbasis.wrappers import from_iodata
 from gbasis.evals.density import evaluate_density
 
 from grid.becke import BeckeWeights
-from grid.atomgrid import AtomGrid
+from grid.atomic_grid import AtomicGrid
 from grid.molgrid import MolGrid
 from grid.onedgrid import GaussChebyshev, HortonLinear, OneDGrid
 from grid.rtransform import BeckeTF, HyperbolicRTransform, PowerRTransform
@@ -81,7 +81,7 @@ def prepare_input(iodata, nrad, nang, chunk_size):
     -------
     grid
         A molecular integration grid.
-    rho
+    density
         The electron density on the grid.
 
     """
@@ -95,8 +95,8 @@ def prepare_input(iodata, nrad, nang, chunk_size):
             )
         coeffs, occs = iodata.mo.coeffs, iodata.mo.occs
         one_rdm = np.dot(coeffs * occs, coeffs.T)
-    rho = _compute_density(iodata, one_rdm, grid.points, chunk_size)
-    return grid, rho
+    density = _compute_density(iodata, one_rdm, grid.points, chunk_size)
+    return grid, density
 
 
 def prepare_input_gpw(atoms, calc, grid_size):
@@ -128,7 +128,7 @@ def prepare_input_gpw(atoms, calc, grid_size):
         "atcorenums": atcorenums,
         "points": density['points'],
         "weights": density['weights'],
-        "rho": density['rho'],
+        "density": density['density'],
         "cellvecs": cellvecs,
     }
 
@@ -168,38 +168,38 @@ def compute_augmentation_spheres(grid_data, setups, atoms, numbers, coordinates,
             center=coordinates[iatom]
         )
 
-        rhoc, rhoct, rhov, rhovt, spinrhov, spinrhovt = \
+        density_c, density_ct, density_v, density_vt, spindensity_v, spindensity_vt = \
                 eval_correction(atgrid_short, atomg, setupg, coordinates[iatom])
 
-        rhoc_cor = rhoc - rhoct
-        rhov_cor = rhov - rhovt
-        spinrhov_cor = spinrhov - spinrhovt
+        density_c_cor = density_c - density_ct
+        density_v_cor = density_v - density_vt
+        spindensity_v_cor = spindensity_v - spindensity_vt
 
         # store some extra stuff in the dictionary
         atomg['grid_points'] = atgrid_short.points
         atomg['grid_weights'] = atgrid_short.weights
-        atomg['rhoc'] = rhoc
-        atomg['rhoct'] = rhoct
-        atomg['rhoc_cor'] = rhoc_cor
-        atomg['rhov'] = rhov
-        atomg['rhovt'] = rhovt
-        atomg['rhov_cor'] = rhov_cor
-        atomg['spinrhov'] = spinrhov
-        atomg['spinrhovt'] = spinrhovt
-        atomg['spinrhov_cor'] = spinrhov_cor
+        atomg['density_c'] = density_c
+        atomg['density_ct'] = density_ct
+        atomg['density_c_cor'] = density_c_cor
+        atomg['density_v'] = density_v
+        atomg['density_vt'] = density_vt
+        atomg['density_v_cor'] = density_v_cor
+        atomg['spindensity_v'] = spindensity_v
+        atomg['spindensity_vt'] = spindensity_vt
+        atomg['spindensity_v_cor'] = spindensity_v_cor
 
         # add things up and compare
         # - core part
-        myqcors[iatom] = atgrid_short.integrate(rhoc_cor) - numbers[iatom]
+        myqcors[iatom] = atgrid_short.integrate(density_c_cor) - numbers[iatom]
         # - valence part
-        vcor = atgrid_short.integrate(rhov_cor)
+        vcor = atgrid_short.integrate(density_v_cor)
         myqcors[iatom] += vcor
         print('{:2d} {:4d}   {:12.7f}   {:12.7f}   {:12.5e}'.format(
             numbers[iatom], iatom,
             myqcors[iatom], qcors[iatom], myqcors[iatom] - qcors[iatom]))
 
         if sqcors is not None:
-            mysqcors[iatom] = atgrid_short.integrate(spinrhov_cor)
+            mysqcors[iatom] = atgrid_short.integrate(spindensity_v_cor)
             print('spin      {:12.7f}   {:12.7f}   {:12.5e}'.format(
                 mysqcors[iatom], sqcors[iatom], mysqcors[iatom] - sqcors[iatom]))
 
@@ -220,9 +220,9 @@ def eval_correction(grid, atomg, setupg, center):
 
     # Compute the core density correction
     cs_nc = setupg['nc']
-    rhoc = cs_nc(d)
+    density_c = cs_nc(d)
     cs_nct = setupg['nct']
-    rhoct = cs_nct(d)
+    density_ct = cs_nct(d)
 
     # Compute real spherical harmonics on grid
     lmax = 4
@@ -285,23 +285,23 @@ def eval_correction(grid, atomg, setupg, center):
     else:
         sdm = None
 
-    rhov, rhovt, spinrhov, spinrhovt = np.zeros(N), np.zeros(N), np.zeros(N), np.zeros(N)
+    density_v, density_vt, spindensity_v, spindensity_vt = np.zeros(N), np.zeros(N), np.zeros(N), np.zeros(N)
     # Loop over all pairs of basis functions and add product times density matrix coeff
     for ibasis0 in range(len(basis_fns)):
         for ibasis1 in range(ibasis0+1):
             factor = (ibasis0!=ibasis1) + 1
-            rhov += factor*dm[ibasis0, ibasis1]*basis_fns[ibasis0]*basis_fns[ibasis1]
-            rhovt += factor*dm[ibasis0, ibasis1]*basist_fns[ibasis0]*basist_fns[ibasis1]
+            density_v += factor*dm[ibasis0, ibasis1]*basis_fns[ibasis0]*basis_fns[ibasis1]
+            density_vt += factor*dm[ibasis0, ibasis1]*basist_fns[ibasis0]*basist_fns[ibasis1]
             if sdm is not None:
-                spinrhov += factor*sdm[ibasis0, ibasis1]*basis_fns[ibasis0]*basis_fns[ibasis1]
-                spinrhovt += factor*sdm[ibasis0, ibasis1]*basist_fns[ibasis0]*basist_fns[ibasis1]
+                spindensity_v += factor*sdm[ibasis0, ibasis1]*basis_fns[ibasis0]*basis_fns[ibasis1]
+                spindensity_vt += factor*sdm[ibasis0, ibasis1]*basist_fns[ibasis0]*basist_fns[ibasis1]
 
     # Sanity check
     if True:
-        rhov_cor = rhov - rhovt
-        assert np.allclose(grid.integrate(rhov_cor), np.dot((olp-olpt).ravel(), dm.ravel()))
+        density_v_cor = density_v - density_vt
+        assert np.allclose(grid.integrate(density_v_cor), np.dot((olp-olpt).ravel(), dm.ravel()))
 
-    return rhoc, rhoct, rhov, rhovt, spinrhov, spinrhovt
+    return density_c, density_ct, density_v, density_vt, spindensity_v, spindensity_vt
 
 
 def _get_pseudo_grid_data(calc, cellvecs, atnums):
@@ -323,15 +323,15 @@ def _get_pseudo_grid_data(calc, cellvecs, atnums):
         grid_data['charge_corrections'] = corrections[0] + corrections[1]
         grid_data['spincharge_corrections'] = corrections[0] - corrections[1]
 
-        rho_pseudo_alpha = calc.get_pseudo_density(0)*(Bohr**3)
-        rho_pseudo_beta = calc.get_pseudo_density(1)*(Bohr**3)
-        grid_data['pseudo_density'] = rho_pseudo_alpha + rho_pseudo_beta
-        grid_data['pseudo_spindensity'] = rho_pseudo_alpha - rho_pseudo_beta
+        density_pseudo_alpha = calc.get_pseudo_density(0)*(Bohr**3)
+        density_pseudo_beta = calc.get_pseudo_density(1)*(Bohr**3)
+        grid_data['pseudo_density'] = density_pseudo_alpha + density_pseudo_beta
+        grid_data['pseudo_spindensity'] = density_pseudo_alpha - density_pseudo_beta
 
-        rho_ae_alpha = calc.get_all_electron_density(spin=0, gridrefinement=1)*(Bohr**3)
-        rho_ae_beta = calc.get_all_electron_density(spin=1, gridrefinement=1)*(Bohr**3)
-        grid_data['ae_density'] = rho_ae_alpha + rho_ae_beta
-        grid_data['ae_spindensity'] = rho_ae_alpha - rho_ae_beta
+        density_ae_alpha = calc.get_all_electron_density(spin=0, gridrefinement=1)*(Bohr**3)
+        density_ae_beta = calc.get_all_electron_density(spin=1, gridrefinement=1)*(Bohr**3)
+        grid_data['ae_density'] = density_ae_alpha + density_ae_beta
+        grid_data['ae_spindensity'] = density_ae_alpha - density_ae_beta
 
     # Sanity checks
     assert (grid_data['pseudo_density'].shape == grid_data['shape']).all()
@@ -469,19 +469,19 @@ def denspart_conventions(grid_data, atoms, atnums):
     grid_parts.append(GridPart(grid_data, 'pseudo_density'))
 
     for iatom in range(natom):
-        grid_parts.append(GridPart(atoms['%03i' % iatom], ['rhoc_cor', 'rhov_cor']))
+        grid_parts.append(GridPart(atoms['%03i' % iatom], ['density_c_cor', 'density_v_cor']))
 
     # Count the number of points
     npoint_total = sum(len(grid_part.points) for grid_part in grid_parts)
     # Make numpy arrays
     points = np.zeros((npoint_total, 3))    
     weights = np.zeros((npoint_total,))
-    rho = np.zeros((npoint_total,))
+    density = np.zeros((npoint_total,))
 
     # Fill arrays
     begin = 0
     for grid_part in grid_parts:
-        begin = grid_part.store_data(begin, points, weights, rho)
+        begin = grid_part.store_data(begin, points, weights, density)
     assert begin == npoint_total
 
     if grid_data['nspins'] == 2:
@@ -490,18 +490,18 @@ def denspart_conventions(grid_data, atoms, atnums):
         spin_grid_parts.append(GridPart(grid_data, 'pseudo_spindensity'))
 
         for iatom in range(natom):
-            spin_grid_parts.append(GridPart(atoms['%03i' % iatom], 'spinrhov_cor'))
+            spin_grid_parts.append(GridPart(atoms['%03i' % iatom], 'spindensity_v_cor'))
 
-        spinrho = np.zeros((npoint_total,))
+        spindensity = np.zeros((npoint_total,))
         begin = 0
         for grid_part in spin_grid_parts:
-            begin = grid_part.store_data(begin, points, weights, spinrho)
+            begin = grid_part.store_data(begin, points, weights, spindensity)
         assert begin == npoint_total
-        density['spinrho'] = spinrho
+        density['spindensity'] = spindensity
 
     density['points'] = points
     density['weights'] = weights
-    density['rho'] = rho
+    density['density'] = density
 
     return density
 
@@ -511,18 +511,18 @@ class GridPart(object):
         self.points = gridpart['grid_points']
         self.weights = gridpart['grid_weights']
         if isinstance(densname, list):
-            self.rho = np.zeros(gridpart[densname[0]].shape)
+            self.density = np.zeros(gridpart[densname[0]].shape)
             for name in densname:
-                self.rho += gridpart[name]
+                self.density += gridpart[name]
         else:
-            self.rho = gridpart[densname]
+            self.density = gridpart[densname]
 
-    def store_data(self, begin, points, weights, rho):
+    def store_data(self, begin, points, weights, density):
         size = len(self.points)
         end = begin + size
         points[begin:end] = self.points
         weights[begin:end] = self.weights
-        rho[begin:end] += self.rho.ravel()
+        density[begin:end] += self.density.ravel()
         return end
 
 
@@ -645,22 +645,22 @@ def _compute_density(iodata, one_rdm, points, chunk_size):
 
     Returns
     -------
-    rho
+    density
         The electron density on the grid points.
 
     """
     basis, coord_types = from_iodata(iodata)
     istart = 0
-    rho = np.zeros(len(points))
+    density = np.zeros(len(points))
     while istart < len(points):
-        print("Computing density: {} / {}".format(istart, len(rho)))
+        print("Computing density: {} / {}".format(istart, len(density)))
         iend = istart + chunk_size
-        rho[istart:iend] = evaluate_density(
+        density[istart:iend] = evaluate_density(
             one_rdm, basis, points[istart:iend], coord_type=coord_types
         )
         istart = iend
-    assert (rho >= 0).all()
-    return rho
+    assert (density >= 0).all()
+    return density
 
 
 def main():
@@ -675,21 +675,21 @@ def main():
         # compute energy
         atoms.get_potential_energy()
         input_data = prepare_input_gpw(atoms, calc, args.grid)
-        np.savez(args.fn_rho, **input_data)
+        np.savez(args.fn_density, **input_data)
 
     else:
 
         iodata = load_one(args.fn_wfn)
-        grid, rho = prepare_input(iodata, args.nrad, args.nang, args.chunk_size)
+        grid, density = prepare_input(iodata, args.nrad, args.nang, args.chunk_size)
         np.savez(
-            args.fn_rho,
+            args.fn_density,
             **{
                 "atcoords": iodata.atcoords,
                 "atnums": iodata.atnums,
                 "atcorenums": iodata.atcorenums,
                 "points": grid.points,
                 "weights": grid.weights,
-                "rho": rho,
+                "density": density,
                 "cellvecs": np.zeros((0, 3)),
             },
         )
@@ -701,11 +701,11 @@ def parse_args():
         "Setup a default integration grid and compute the density with HORTON3."
     )
     parser = argparse.ArgumentParser(
-        prog="denspart-rho-horton3", description=description
+        prog="denspart-from-horton3", description=description
     )
     parser.add_argument("fn_wfn", help="The wavefunction file.")
     parser.add_argument(
-        "fn_rho",
+        "fn_density",
         help="The NPZ file in which the grid and the " "density will be stored.",
     )
     parser.add_argument(

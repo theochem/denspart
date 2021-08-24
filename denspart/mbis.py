@@ -34,7 +34,7 @@ from .vh import (
 __all__ = ["partition"]
 
 
-def partition(atnums, atcoords, grid, rho, gtol=1e-8, ftol=1e-14, rho_cutoff=1e-10):
+def partition(atnums, atcoords, grid, density, gtol=1e-8, ftol=1e-14, density_cutoff=1e-10):
     """Perform a basic MBIS partitioning.
 
     Parameters
@@ -45,13 +45,13 @@ def partition(atnums, atcoords, grid, rho, gtol=1e-8, ftol=1e-14, rho_cutoff=1e-
         Atomic coordinates
     grid
         A molecular integration grid, with support for subgrids.
-    rho
+    density
         The electron density on the grid
     gtol
         Convergence parameter gtol of SciPy's L-BFGS-B minimizer.
     ftol
         Convergence parameter ftol of SciPy's L-BFGS-B minimizer.
-    rho_cutoff
+    density_cutoff
         Density cutoff used to estimated sizes of local grids. Set to zero for
         whole-grid integrations. (This will not work for periodic systems.)
 
@@ -64,7 +64,7 @@ def partition(atnums, atcoords, grid, rho, gtol=1e-8, ftol=1e-14, rho_cutoff=1e-
     # TODO: this function does not do much. It might be abandonded in favor of
     # some logic in the CLI code.
     pro_model = MBISProModel(atnums, atcoords)
-    return optimize_pro_model(pro_model, grid, rho, gtol, ftol, rho_cutoff)
+    return optimize_pro_model(pro_model, grid, density, gtol, ftol, density_cutoff)
 
 
 class ExponentialFunction(BasisFunction):
@@ -84,11 +84,11 @@ class ExponentialFunction(BasisFunction):
     def population_derivatives(self):
         return np.array([1.0, 0.0])
 
-    def get_cutoff_radius(self, rho_cutoff):
-        if rho_cutoff <= 0.0:
+    def get_cutoff_radius(self, density_cutoff):
+        if density_cutoff <= 0.0:
             return np.inf
         population, exponent = self.pars
-        return (np.log(population) - np.log(rho_cutoff)) / exponent
+        return (np.log(population) - np.log(density_cutoff)) / exponent
 
     def compute_dists(self, points, new_points):
         if (self.dists is None) or new_points:

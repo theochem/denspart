@@ -32,7 +32,7 @@ from numba import jit
 __all__ = ["optimize_pro_model", "BasisFunction", "ProModel", "ekld"]
 
 
-def optimize_pro_model(pro_model, grid, rho, gtol=1e-8, ftol=1e-14, rho_cutoff=1e-10):
+def optimize_pro_model(pro_model, grid, density, gtol=1e-8, ftol=1e-14, density_cutoff=1e-10):
     """Optimize the promodel using the L-BFGS-B minimizer from SciPy.
 
     Parameters
@@ -42,13 +42,13 @@ def optimize_pro_model(pro_model, grid, rho, gtol=1e-8, ftol=1e-14, rho_cutoff=1
         It contains the initial parameters as an attribute.
     grid
         The integration grid, an instance of ``grid.basegrid.Grid``.
-    rho
+    density
         The electron density evaluated on the grid.
     gtol
         Convergence parameter gtol of SciPy's L-BFGS-B minimizer.
     ftol
         Convergence parameter ftol of SciPy's L-BFGS-B minimizer.
-    rho_cutoff
+    density_cutoff
         Density cutoff used to estimated sizes of local grids. Set to zero for
         whole-grid integrations. (This will not work for periodic systems.)
 
@@ -64,19 +64,19 @@ def optimize_pro_model(pro_model, grid, rho, gtol=1e-8, ftol=1e-14, rho_cutoff=1
     # Precompute the local grids.
     print("Building local grids")
     localgrids = [
-        grid.get_localgrid(fn.center, fn.get_cutoff_radius(rho_cutoff))
+        grid.get_localgrid(fn.center, fn.get_cutoff_radius(density_cutoff))
         for fn in pro_model.fns
     ]
     # Compute the total population
-    pop = np.einsum("i,i", grid.weights, rho)
-    print("Integral of rho:", pop)
+    pop = np.einsum("i,i", grid.weights, density)
+    print("Integral of density:", pop)
     # Define initial guess and cost
     print("Optimization")
     print("#Iter         elkd          kld   constraint     grad.rms  cputime (s)")
     print("-----  -----------  -----------  -----------  -----------  -----------")
     pars0 = np.concatenate([fn.pars for fn in pro_model.fns])
     cost_grad = partial(
-        ekld, grid=grid, rho=rho, pro_model=pro_model, localgrids=localgrids, pop=pop,
+        ekld, grid=grid, density=density, pro_model=pro_model, localgrids=localgrids, pop=pop,
     )
     with np.errstate(all="raise"):
         # The errstate is changed to detect potentially nasty numerical issues.
@@ -166,7 +166,7 @@ class BasisFunction:
         """Derivatives of the population w.r.t. proparameters."""
         raise NotImplementedError
 
-    def get_cutoff_radius(self, rho_cutoff):
+    def get_cutoff_radius(self, density_cutoff):
         """Estimate the cutoff radius for the given density cutoff."""
         raise NotImplementedError
 
@@ -296,7 +296,7 @@ class ProModel:
             )
 
 
-def ekld(pars, grid, rho, pro_model, localgrids, pop, rho_cutoff=1e-15):
+def ekld(pars, grid, density, pro_model, localgrids, pop, density_cutoff=1e-15):
     """Compute the Extended KL divergence and its gradient.
 
     Parameters
@@ -305,15 +305,15 @@ def ekld(pars, grid, rho, pro_model, localgrids, pop, rho_cutoff=1e-15):
         A NumPy array with promodel parameters.
     grid
         A numerical integration grid with, instance of ``grid.basegrid.Grid``.
-    rho
+    density
         The electron density evaluated on the grid.
     pro_model
         The model for the pro-molecular density, an instance of ``ProModel``.
     local_grids
         A list of local integration grids for the pro-model basis functions.
     pop
-        The integral of rho, to be precomputed before calling this function.
-    rho_cutoff
+        The integral of density, to be precomputed before calling this function.
+    density_cutoff
         Density cutoff used to neglect grid points with low densities. Including
         them can result in numerical noise in the result and its derivatives.
 
@@ -331,14 +331,14 @@ def ekld(pars, grid, rho, pro_model, localgrids, pop, rho_cutoff=1e-15):
     pro = pro_model.compute_density(grid, localgrids)
 
     # Compute potentially tricky quantities.
-    sick = (rho < rho_cutoff) | (pro < rho_cutoff)
+    sick = (density < density_cutoff) | (pro < density_cutoff)
     with np.errstate(all="ignore"):
-        lnratio = np.log(rho) - np.log(pro)
-        ratio = rho / pro
+        lnratio = np.log(density) - np.log(pro)
+        ratio = density / pro
     lnratio[sick] = 0.0
     ratio[sick] = 0.0
     # Function value
-    kld = np.einsum("i,i,i", grid.weights, rho, lnratio)
+    kld = np.einsum("i,i,i", grid.weights, density, lnratio)
 
     constraint = pop - pro_model.population
     result = kld - constraint

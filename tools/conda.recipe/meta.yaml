@@ -10,7 +10,7 @@ build:
   noarch: python
   script: "{{ PYTHON }} -m pip install . --no-deps"
   entry_points:
-    - denspart-rho-horton3 = denspart.adapters.horton3:main
+    - denspart-from-horton3 = denspart.adapters.horton3:main
     - denspart = denspart.__main__:main
     - denspart-write-extxyz = denspart.utils.write_extxyz:main
 

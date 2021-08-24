@@ -34,8 +34,8 @@ Usage:
 .. code-block:: bash
 
     # Compute electronic density on a default grid (not optimal yet)
-    denspart-rho-horton3 wfn_file rho.npz
+    denspart-from-horton3 wfn_file density.npz
     # Run the partitioning
-    denspart rho.npz results.npz
+    denspart density.npz results.npz
     # Convert results to human-readable format
     denspart-write-extxyz results.npz results.xyz

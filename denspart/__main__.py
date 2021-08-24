@@ -42,16 +42,16 @@ def main():
     else:
         print('Using Periodic Grid')
         grid = PeriodicGrid(data["points"], data["weights"], data["cellvecs"], wrap=True)
-    rho = data["rho"]
+    density = data["density"]
     print("MBIS partitioning --")
     pro_model, localgrids = partition(
         data["atnums"],
         data["atcoords"],
         grid,
-        rho,
+        density,
         args.gtol,
         args.ftol,
-        args.rho_cutoff,
+        args.density_cutoff,
     )
     print("Promodel")
     pro_model.pprint()
@@ -62,10 +62,10 @@ def main():
             "atnums": data["atnums"],
             "atcoords": data["atcoords"],
             "charges": pro_model.charges,
-            "radial_moments": compute_rexp(pro_model, grid, rho, localgrids),
+            "radial_moments": compute_rexp(pro_model, grid, density, localgrids),
             "gtol": args.gtol,
             "ftol": args.ftol,
-            "rho_cutoff": args.rho_cutoff,
+            "density_cutoff": args.density_cutoff,
         }
     )
     # TODO: make it easy to reconstruct a pro-model from the saved results.
@@ -95,11 +95,11 @@ def parse_args():
         help="ftol convergence criterion for L-BFGS-B. [default=%(default)s]",
     )
     parser.add_argument(
-        "--rhocut",
+        "-c" "--density-cutoff",
+        dest="density_cutoff",
         type=float,
         default=1e-10,
-        dest="rho_cutoff",
-        help="Cutoff density, used to estimate local grid sizes. "
+        help="Density cutoff, used to estimate local grid sizes. "
         "Set to zero for while grid integrations (molecules only).",
     )
     return parser.parse_args()

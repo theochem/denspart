@@ -25,7 +25,7 @@ import numpy as np
 __all__ = ["compute_rexp"]
 
 
-def compute_rexp(pro_model, grid, rho, localgrids, N_max=4):
+def compute_rexp(pro_model, grid, density, localgrids, N_max=4):
     """Compute expectation values of r^N for each atom.
 
     Parameters
@@ -34,7 +34,7 @@ def compute_rexp(pro_model, grid, rho, localgrids, N_max=4):
         The model for the pro-molecular density, an instance of ``ProModel``.
     grid
         The whole integration grid, instance of ``grid.basegrid.Grid.``
-    rho
+    density
         The electron density.
     localgrids
         A list of local grids, one for each basis function.
@@ -56,5 +56,5 @@ def compute_rexp(pro_model, grid, rho, localgrids, N_max=4):
         pro_atom = pro_model.compute_proatom(iatom, localgrid)
         ratio = pro_atom / pro[localgrid.indices]
         for N in np.arange(N_max+1):
-            result[iatom, N] = localgrid.integrate(rho[localgrid.indices], dists ** N, ratio)
+            result[iatom, N] = localgrid.integrate(density[localgrid.indices], dists ** N, ratio)
     return result

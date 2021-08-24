@@ -119,11 +119,11 @@ FILENAMES = [
 
 
 @pytest.mark.parametrize("fn_wfn", FILENAMES)
-def test_integrate_rho(fn_wfn):
+def test_integrate_density(fn_wfn):
     with path("iodata.test.data", fn_wfn) as fn_full:
         with pytest.warns(None) as record:
             iodata = load_one(str(fn_full))
         if len(record) == 1:
             assert issubclass(record[0].category, FileFormatWarning)
-    grid, rho = prepare_input(iodata, 150, 194, 10000)
-    assert_allclose(grid.integrate(rho), iodata.mo.nelec, atol=1e-2)
+    grid, density = prepare_input(iodata, 150, 194, 10000)
+    assert_allclose(grid.integrate(density), iodata.mo.nelec, atol=1e-2)
