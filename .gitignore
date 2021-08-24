@@ -1,7 +1,7 @@
 *.npz
 *.h5
 tmp
-denspart/version.py
+denspart/_version.py
 activate-*-dev-python-*.sh
 coverage*.xml
 .coverage
