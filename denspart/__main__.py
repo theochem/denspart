@@ -27,7 +27,7 @@ from grid.basegrid import Grid
 from grid.periodicgrid import PeriodicGrid
 
 from denspart.mbis import partition
-from denspart.properties import compute_radial_moments
+from denspart.properties import compute_radial_moments, compute_multipole_moments
 
 
 __all__ = ["main"]
@@ -37,7 +37,7 @@ def main():
     """Partitioning command-line interface."""
     args = parse_args()
     data = np.load(args.in_npz)
-    if data["cellvecs"].size == 0:
+    if "cellvecs" not in data or data["cellvecs"].size == 0:
         grid = Grid(data["points"], data["weights"])
     else:
         print("Using Periodic Grid")
@@ -52,6 +52,7 @@ def main():
         grid,
         density,
         args.gtol,
+        args.maxiter,
         args.density_cutoff,
     )
     print("Promodel")
@@ -66,7 +67,11 @@ def main():
             "radial_moments": compute_radial_moments(
                 pro_model, grid, density, localgrids
             ),
+            "multipole_moments": compute_multipole_moments(
+                pro_model, grid, density, localgrids
+            ),
             "gtol": args.gtol,
+            "maxiter": args.maxiter,
             "density_cutoff": args.density_cutoff,
         }
     )
@@ -88,15 +93,25 @@ def parse_args():
         "--gtol",
         type=float,
         default=1e-8,
-        help="gtol convergence criterion for L-BFGS-B. [default=%(default)s]",
+        help="gtol convergence criterion for SciPy's trust-constr minimizer. "
+        "[default=%(default)s]",
     )
     parser.add_argument(
-        "-c" "--density-cutoff",
-        dest="density_cutoff",
+        "-m",
+        "--maxiter",
+        type=int,
+        default=1000,
+        help="Maximum number of iterations in SciPy's trust-constr minimizer. "
+        "[default=%(default)s]",
+    )
+    parser.add_argument(
+        "-c",
+        "--density-cutoff",
         type=float,
         default=1e-10,
         help="Density cutoff, used to estimate local grid sizes. "
-        "Set to zero for while grid integrations (molecules only).",
+        "Set to zero for while grid integrations (molecules only). "
+        "[default=%(default)s]",
     )
     return parser.parse_args()
 

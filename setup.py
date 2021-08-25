@@ -63,6 +63,7 @@ setup(
         "console_scripts": [
             "denspart-from-horton3 = denspart.adapters.horton3:main",
             "denspart-from-gpaw = denspart.adapters.gpaw:main",
+            "denspart-from-adf = denspart.adapters.adf:main",
             "denspart = denspart.__main__:main",
             "denspart-write-extxyz = denspart.utils.write_extxyz:main",
         ]
@@ -77,5 +78,5 @@ setup(
         "Topic :: Scientific/Engineering :: Chemistry",
         "Intended Audience :: Science/Research",
     ],
-    install_requires=["numpy>=1.0"],
+    install_requires=["numpy>=1.0"],  # , "qc-grid"],
 )

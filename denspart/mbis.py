@@ -36,7 +36,9 @@ from .vh import (
 __all__ = ["partition"]
 
 
-def partition(atnums, atcoords, grid, density, gtol=1e-8, density_cutoff=1e-10):
+def partition(
+    atnums, atcoords, grid, density, gtol=1e-8, maxiter=1000, density_cutoff=1e-10
+):
     """Perform a basic MBIS partitioning.
 
     Parameters
@@ -50,7 +52,9 @@ def partition(atnums, atcoords, grid, density, gtol=1e-8, density_cutoff=1e-10):
     density
         The electron density on the grid
     gtol
-        Convergence parameter gtol of SciPy's L-BFGS-B minimizer.
+        Convergence parameter gtol of SciPy's trust-constr minimizer.
+    maxiter
+        Maximum number of iterations in SciPy's trust-constr minimizer.
     density_cutoff
         Density cutoff used to estimated sizes of local grids. Set to zero for
         whole-grid integrations. (This will not work for periodic systems.)
@@ -64,7 +68,7 @@ def partition(atnums, atcoords, grid, density, gtol=1e-8, density_cutoff=1e-10):
     # TODO: this function does not do much. It might be abandonded in favor of
     # some logic in the CLI code.
     pro_model = MBISProModel(atnums, atcoords)
-    return optimize_pro_model(pro_model, grid, density, gtol, density_cutoff)
+    return optimize_pro_model(pro_model, grid, density, gtol, maxiter, density_cutoff)
 
 
 class ExponentialFunction(BasisFunction):

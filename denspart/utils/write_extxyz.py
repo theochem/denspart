@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # DensPart performs Atoms-in-molecules density partitioning.
 # Copyright (C) 2011-2020 The DensPart Development Team
 #
@@ -87,7 +86,7 @@ def main():
         atcoords=results["atcoords"],
         atffparams={
             "charges": results["charges"],
-            "rcubed": results["rcubed"],
+            "rcubed": results["radial_moments"][:, 3],
             "valence_charges": results["valence_charges"],
             "core_charges": results["core_charges"],
             "valence_widths": results["valence_widths"],

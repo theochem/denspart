@@ -33,6 +33,8 @@ from grid.atomic_grid import AtomicGrid
 from grid.rtransform import HyperbolicRTransform
 from grid.onedgrid import OneDGrid
 
+from ..properties import spherical_harmonics
+
 
 __all__ = ["prepare_input"]
 
@@ -338,6 +340,7 @@ def compute_augmentation_spheres(uniform_data, setups, atoms, atnums, atcoords):
         sqcors = None
         mysqcors = None
 
+    print("  ~~~~~~~  ~~~~~~~~~~~~~  ~~~~~~~~~~~~~  ~~~~~~~~~~~~~")
     print("     Atom  DensPart QCor      GPAW QCor          Error")
     print("  ~~~~~~~  ~~~~~~~~~~~~~  ~~~~~~~~~~~~~  ~~~~~~~~~~~~~")
 
@@ -349,13 +352,12 @@ def compute_augmentation_spheres(uniform_data, setups, atoms, atnums, atcoords):
         atgrid_short = AtomicGrid(
             radgrid,
             nums=[38] * radgrid.size,
-            center=atcoords[iatom],
         )
-        atom_data["grid_points"] = atgrid_short.points
+        atom_data["grid_points"] = atgrid_short.points + atcoords[iatom]
         atom_data["grid_weights"] = atgrid_short.weights
 
         # Do the actual nasty work...
-        eval_correction(atgrid_short, atom_data, setup_data, atcoords[iatom])
+        eval_correction(atgrid_short, atom_data, setup_data)
 
         # Add things up and compare.
         # - core part
@@ -383,6 +385,8 @@ def compute_augmentation_spheres(uniform_data, setups, atoms, atnums, atcoords):
                 )
             )
 
+    print("  ~~~~~~~  ~~~~~~~~~~~~~  ~~~~~~~~~~~~~  ~~~~~~~~~~~~~")
+
     # Checks on the total charge
     print("  GPAW total charge:     {:10.3e}".format(nelec_pseudo + qcors.sum()))
     print("  DensPart total charge: {:10.3e}".format(nelec_pseudo + myqcors.sum()))
@@ -393,7 +397,7 @@ def compute_augmentation_spheres(uniform_data, setups, atoms, atnums, atcoords):
         assert_allclose(sqcors, mysqcors)
 
 
-def eval_correction(grid, atom_data, setup_data, center):
+def eval_correction(grid, atom_data, setup_data):
     """Compute the projected to all-electron corrections for one muffin-tin sphere.
 
     Parameters
@@ -404,8 +408,6 @@ def eval_correction(grid, atom_data, setup_data, center):
         Dictionary with the density matrices.
     setup_data
         Atomic (basis) functions stored on radial grids.
-    center
-        Position of the atomic nucleus.
 
     Notes
     -----
@@ -416,7 +418,7 @@ def eval_correction(grid, atom_data, setup_data, center):
     - v = valence
 
     """
-    d = np.linalg.norm(grid.points - center, axis=1)
+    d = np.linalg.norm(grid.points, axis=1)
 
     # Compute the core density correction.
     cs_nc = setup_data[("nc", "spline")]
@@ -428,18 +430,10 @@ def eval_correction(grid, atom_data, setup_data, center):
     ls = setup_data["ls"]
     lmax = max(ls)
     polys = np.zeros(((lmax + 1) ** 2 - 1, grid.size), float)
-    polys[0] = grid.points[:, 2] - center[2]
-    polys[1] = grid.points[:, 0] - center[0]
-    polys[2] = grid.points[:, 1] - center[1]
-
-    # Divide by r before computing harmonics -> real spherical (not solid).
-    r = np.sqrt(polys[0] ** 2 + polys[1] ** 2 + polys[2] ** 2)
-    # The following line assumes that all points in the origin come first in
-    # the grid.
-    nskip = (r == 0.0).sum()
-    polys[:3, nskip:] /= r[nskip:]
-    compute_solid_harmonics(polys[:, nskip:], lmax)
-    polys[:, :nskip] = 1.0
+    polys[0] = grid.points[:, 2]
+    polys[1] = grid.points[:, 0]
+    polys[2] = grid.points[:, 1]
+    spherical_harmonics(polys, lmax, racah=True)
 
     # Evaluate each pseudo and ae basis function in the atomic grid.
     basis_fns = []
@@ -520,73 +514,6 @@ def eval_correction(grid, atom_data, setup_data, center):
     atom_data["spindensity_v"] = spindensity_v
     atom_data["spindensity_vt"] = spindensity_vt
     atom_data["spindensity_v_cor"] = spindensity_v_cor
-
-
-def compute_solid_harmonics(work, lmax):
-    """Recursive calculation of spherical harmonics.
-
-    Parameters
-    ----------
-    output
-        The input and output array. First three elements should contain x, y and z.
-    lmax
-        Maximum angular momentum.
-
-    """
-    if lmax <= 1:
-        return
-
-    shape = work[0].shape
-    z = work[0]
-    x = work[1]
-    y = work[2]
-
-    r2 = x * x + y * y + z * z
-
-    # temporary arrays to store PI(z,r) polynomials
-    tmp_shape = (lmax + 1,) + shape
-    pi_old = np.zeros(tmp_shape)
-    pi_new = np.zeros(tmp_shape)
-    a = np.zeros(tmp_shape)
-    b = np.zeros(tmp_shape)
-
-    # Initialize the temporary arrays
-    pi_old[0] = 1
-    pi_new[0] = z
-    pi_new[1] = 1
-    a[1] = x
-    b[1] = y
-
-    old_offset = 0  # first array index of the moments of the previous shell
-    old_npure = 3  # number of moments in previous shell
-    for l in range(2, lmax + 1):
-        new_npure = old_npure + 2
-        new_offset = old_offset + old_npure
-
-        # Polynomials PI(z,r) for current l
-        factor = 2 * l - 1
-        for m in range(l - 1):
-            tmp = pi_old[m].copy()
-            pi_old[m] = pi_new[m]
-            pi_new[m] = (z * factor * pi_old[m] - r2 * (l + m - 1) * tmp) / (l - m)
-
-        pi_old[l - 1] = pi_new[l - 1]
-        pi_new[l] = factor * pi_old[l - 1]
-        pi_new[l - 1] = z * pi_new[l]
-
-        # construct new polynomials A(x,y) and B(x,y)
-        a[l] = x * a[l - 1] - y * b[l - 1]
-        b[l] = x * b[l - 1] + y * a[l - 1]
-
-        # construct solid harmonics
-        work[new_offset] = pi_new[0]
-        factor = np.sqrt(2)
-        for m in range(1, l + 1):
-            factor /= np.sqrt((l + m) * (l - m + 1))
-            work[new_offset + 2 * m - 1] = factor * a[m] * pi_new[m]
-            work[new_offset + 2 * m] = factor * b[m] * pi_new[m]
-        old_npure = new_npure
-        old_offset = new_offset
 
 
 def compute_uniform_points(uniform_data):
@@ -683,3 +610,7 @@ def parse_args():
         help="The NPZ file in which the grid and the density will be stored.",
     )
     return parser.parse_args()
+
+
+if __name__ == "__main__":
+    main()

@@ -32,7 +32,9 @@ from scipy.optimize import minimize
 __all__ = ["optimize_pro_model", "BasisFunction", "ProModel", "ekld"]
 
 
-def optimize_pro_model(pro_model, grid, density, gtol=1e-8, density_cutoff=1e-10):
+def optimize_pro_model(
+    pro_model, grid, density, gtol=1e-8, maxiter=1000, density_cutoff=1e-10
+):
     """Optimize the promodel using the trust-constr minimizer from SciPy.
 
     Parameters
@@ -46,6 +48,8 @@ def optimize_pro_model(pro_model, grid, density, gtol=1e-8, density_cutoff=1e-10
         The electron density evaluated on the grid.
     gtol
         Convergence parameter gtol of SciPy's trust-constr minimizer.
+    maxiter
+        Maximum number of iterations in SciPy's trust-constr minimizer.
     density_cutoff
         Density cutoff used to estimated sizes of local grids. Set to zero for
         whole-grid integrations. (This will not work for periodic systems.)
@@ -70,8 +74,12 @@ def optimize_pro_model(pro_model, grid, density, gtol=1e-8, density_cutoff=1e-10
     print("Integral of density:", pop)
     # Define initial guess and cost
     print("Optimization")
-    print("#Iter         elkd          kld   constraint     grad.rms  cputime (s)")
-    print("-----  -----------  -----------  -----------  -----------  -----------")
+    print(
+        "#Iter  #Call         ekld          kld  -constraint     grad.rms  cputime (s)"
+    )
+    print(
+        "-----  -----  -----------  -----------  -----------  -----------  -----------"
+    )
     pars0 = np.concatenate([fn.pars for fn in pro_model.fns])
     cost_grad = partial(
         ekld,
@@ -81,6 +89,26 @@ def optimize_pro_model(pro_model, grid, density, gtol=1e-8, density_cutoff=1e-10
         localgrids=localgrids,
         pop=pop,
     )
+    pro_model.ekld_info = None
+
+    def callback(current_pars, opt_result):
+        info = pro_model.ekld_info
+        # if info is None:
+        #    return
+        gradient = info["gradient"]
+        print(
+            "{:5d} {:5d} {:12.7f} {:12.7f} {:12.4e} {:12.4e} {:12.7f}".format(
+                opt_result.nit,
+                opt_result.njev,
+                info["ekld"],
+                info["kld"],
+                -info["constraint"],
+                # TODO: projected gradient may be better.
+                np.linalg.norm(gradient) / np.sqrt(len(gradient)),
+                info["time"],
+            )
+        )
+
     with np.errstate(all="raise"):
         # The errstate is changed to detect potentially nasty numerical issues.
         # Optimize parameters within the bounds.
@@ -93,7 +121,8 @@ def optimize_pro_model(pro_model, grid, density, gtol=1e-8, density_cutoff=1e-10
             jac=True,
             hess="2-point",
             bounds=bounds,
-            options={"gtol": gtol},
+            callback=callback,
+            options={"gtol": gtol, "maxiter": maxiter},
         )
 
     print("-----  -----------  -----------  -----------  -----------  -----------")
@@ -346,17 +375,13 @@ def ekld(pars, grid, density, pro_model, localgrids, pop, density_cutoff=1e-15):
         )
         ipar += fn.npar
 
-    # Screen output
+    # Save some quantities for screen output
     time_stop = time.process_time()
-    print(
-        "{:5d} {:12.7f} {:12.7f} {:12.4e} {:12.4e} {:12.7f}".format(
-            pro_model.ncompute,
-            result,
-            kld,
-            -constraint,
-            # TODO: projected gradient may be better.
-            np.linalg.norm(gradient) / np.sqrt(len(gradient)),
-            time_stop - time_start,
-        )
-    )
+    pro_model.ekld_info = {
+        "ekld": result,
+        "kld": kld,
+        "constraint": constraint,
+        "gradient": gradient,
+        "time": time_stop - time_start,
+    }
     return result, gradient

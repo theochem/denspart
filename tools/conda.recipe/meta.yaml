@@ -11,6 +11,8 @@ build:
   script: "{{ PYTHON }} -m pip install . --no-deps"
   entry_points:
     - denspart-from-horton3 = denspart.adapters.horton3:main
+    - denspart-from-gpaw = denspart.adapters.gpaw:main
+    - denspart-from-adf = denspart.adapters.adf:main
     - denspart = denspart.__main__:main
     - denspart-write-extxyz = denspart.utils.write_extxyz:main
 
@@ -21,6 +23,7 @@ requirements:
     - setuptools
   run:
     - python
+    - qc-grid
     - importlib_resources  # [py<37]
 
 test:
