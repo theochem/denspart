@@ -1,0 +1,20 @@
+Task SinglePoint
+
+System
+  Atoms
+     O  0.000000000  0.116624698  0.000000000
+     H  0.765635239 -0.466568101  0.000000000
+     H -0.765635239 -0.466429483  0.000000000
+  end
+end
+
+Engine ADF
+  Basis
+     Type DZP
+  End
+  Symmetry NOSYM
+  Save TAPE10
+  XC
+     GGA PBE
+  End
+EndEngine

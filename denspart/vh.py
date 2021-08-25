@@ -97,7 +97,7 @@ def optimize_pro_model(
         #    return
         gradient = info["gradient"]
         print(
-            "{:5d} {:5d} {:12.7f} {:12.7f} {:12.4e} {:12.4e} {:12.7f}".format(
+            "{:5d} {:6d} {:12.7f} {:12.7f} {:12.4e} {:12.4e} {:12.7f}".format(
                 opt_result.nit,
                 opt_result.njev,
                 info["ekld"],

@@ -86,6 +86,8 @@ Once these are installed, one can run:
 
     denspart-from-horton3 some-file.fchk density.npz
 
+A minimal working example can be found in ``examples/horton3``.
+
 
 GPAW
 ----
@@ -100,6 +102,8 @@ Once these are installed, one can run:
 .. code-block:: bash
 
     denspart-from-horton3 some-file.fchk density.npz
+
+A minimal working example can be found in ``examples/gpaw``.
 
 
 PLAMS
@@ -118,17 +122,7 @@ In this case, you can run:
 where ``ams.results`` is the directory with output files. You need to disable symmetry
 and write out the TAPE10 file. More details can be found the the denspart.adapters.adf
 module. When you have ADF installed, you may need to use ``amspython``, which is a bit
-awkward. In this case, installing denspart and running it is a little different:
-
-.. code-block:: bash
-
-    # install
-    amspython -m pip install git+https://github.com/theochem/grid.git
-    amspython -m pip install git+https://github.com/theochem/denspart.git
-    # convert
-    amspython -m denspart.adapters.adf ams.results density.npz
-    # partition
-    amspython -m denspart density.npz results.npz
+awkward. A minimal working example can be found in ``examples/adf``.
 
 
 Psi4 Interface
@@ -144,7 +138,7 @@ built-in molecular quadrature grids:
     write_density_npz(wfn)
 
 Symmetry is not supported, so you need to set the point group to ``c1`` when specifying
-the geometry.
+the geometry. A minimal working example can be found in ``examples/psi4``.
 
 
 Development setup
@@ -165,3 +159,5 @@ To set up the development environment, do the following:
     rob lint-static
     # Activates the development env
     source activate-denspart-dev-python-3.7.sh
+    # Fix missing dependency
+    pip install git+https://github.com/theochem/grid.git

@@ -1,0 +1,4 @@
+*.npz
+output.txt
+timer.dat
+results.xyz
