@@ -62,6 +62,12 @@ IOData
 
 See https://github.com/theochem/iodata
 
+Install as follows:
+
+.. code-block:: bash
+
+    pip install git+https://github.com/theochem/iodata.git
+
 When IOData is installed, the npz output of the partitioning can be converted into an
 extended XYZ file as follows:
 
@@ -74,10 +80,17 @@ IOData and GBasis
 -----------------
 
 In order to derive a ``density.npz`` from several wavefunction file formats
-(wfn, wfx, molden, fchk, ...), one needs install a few additional packages:
+(wfn, wfx, molden, fchk, ...), one needs install a two dependencies:
 
 - https://github.com/theochem/iodata
 - https://github.com/theochem/gbasis
+
+Install as follows:
+
+.. code-block:: bash
+
+    pip install git+https://github.com/theochem/iodata.git
+    pip install git+https://github.com/theochem/gbasis.git
 
 Once these are installed, one can run:
 
