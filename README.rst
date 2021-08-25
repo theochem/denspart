@@ -74,8 +74,7 @@ IOData and GBasis
 -----------------
 
 In order to derive a ``density.npz`` from several wavefunction file formats
-(wfn, wfx, molden, fchk, ...), one needs install a few additional packages (whose API
-changes regularly):
+(wfn, wfx, molden, fchk, ...), one needs install a few additional packages:
 
 - https://github.com/theochem/iodata
 - https://github.com/theochem/gbasis
@@ -101,7 +100,7 @@ Once these are installed, one can run:
 
 .. code-block:: bash
 
-    denspart-from-horton3 some-file.fchk density.npz
+    denspart-from-gpaw some-file.gpw density.npz
 
 A minimal working example can be found in ``examples/gpaw``.
 
@@ -125,8 +124,10 @@ module. When you have ADF installed, you may need to use ``amspython``, which is
 awkward. A minimal working example can be found in ``examples/adf``.
 
 
-Psi4 Interface
-==============
+Psi4
+----
+
+See https://psicode.org/
 
 By adding a few lines to the Psi4 input script, it will write an NPZ file with Psi4's
 built-in molecular quadrature grids:
