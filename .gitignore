@@ -5,6 +5,7 @@ denspart/_version.py
 activate-*-dev-python-*.sh
 coverage*.xml
 .coverage
+README.html
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

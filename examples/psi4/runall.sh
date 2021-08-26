@@ -18,6 +18,8 @@
 # along with this program; if not, see <http://www.gnu.org/licenses/>
 # --
 
+# Tested with Psi4 1.4, but might also work with earlier versions.
 python runpsi4.py
 denspart density.npz results.npz
 denspart-write-extxyz results.npz results.xyz
+python postprocess.py

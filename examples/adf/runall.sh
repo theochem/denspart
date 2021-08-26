@@ -18,6 +18,8 @@
 # along with this program; if not, see <http://www.gnu.org/licenses/>
 # --
 
+
+# Tested with AMS 2021.202
 source ${ADFHOME}/amsbashrc.sh
 export SCMLICENSE=your_license.txt
 # export SCM_TMPDIR="$TMPDIR"

@@ -2,3 +2,5 @@
 output.txt
 timer.dat
 results.xyz
+*.json
+*.csv

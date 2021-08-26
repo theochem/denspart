@@ -24,7 +24,7 @@ ADF calculations should have the following two settings:
   Symmetry NOSYM
   Save TAPE10
 
-Example input file that works (tested with AMS 2021.202 revision 95049.
+Example input file that works (tested with AMS 2021.202 revision 95049).
 
 
 Task SinglePoint
