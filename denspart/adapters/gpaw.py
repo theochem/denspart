@@ -347,17 +347,10 @@ def compute_augmentation_spheres(uniform_data, setups, atoms, atnums, atcoords):
     for iatom, atom_data in enumerate(atoms):
         setup_data = setups[atom_data["id_setup"]]
 
-        # Setup atomic grid within the muffin tin sphere.
-        radgrid = setup_data[("nc", "radgrid")]
-        atgrid_short = AtomGrid(
-            radgrid,
-            sizes=[38] * radgrid.size,
-        )
+        # Do the actual nasty work...
+        atgrid_short = eval_correction(atom_data, setup_data)
         atom_data["grid_points"] = atgrid_short.points + atcoords[iatom]
         atom_data["grid_weights"] = atgrid_short.weights
-
-        # Do the actual nasty work...
-        eval_correction(atgrid_short, atom_data, setup_data)
 
         # Add things up and compare.
         # - core part
@@ -397,17 +390,20 @@ def compute_augmentation_spheres(uniform_data, setups, atoms, atnums, atcoords):
         assert_allclose(sqcors, mysqcors)
 
 
-def eval_correction(grid, atom_data, setup_data):
+def eval_correction(atom_data, setup_data):
     """Compute the projected to all-electron corrections for one muffin-tin sphere.
 
     Parameters
     ----------
-    grid
-        Local grid for the muffin-tin sphere.
     atom_data
         Dictionary with the density matrices.
     setup_data
         Atomic (basis) functions stored on radial grids.
+
+    Returns
+    -------
+    grid
+        The atomic grid for integrations in the muffin tin sphere.
 
     Notes
     -----
@@ -418,17 +414,29 @@ def eval_correction(grid, atom_data, setup_data):
     - v = valence
 
     """
+    # Setup atomic grid within the muffin tin sphere.
+    radgrid = setup_data[("nc", "radgrid")]
+    ls = setup_data["ls"]
+    lmax = max(ls)
+    # Twice lmax is used for the degree of the angular grid, because we include products
+    # of two orbitals up to angular momentum lmax. Those products have up to angular
+    # momentum 2 * lmax.
+    grid = AtomGrid(
+        radgrid,
+        degrees=[2 * lmax] * radgrid.size,
+    )
+
     d = np.linalg.norm(grid.points, axis=1)
 
     # Compute the core density correction.
     cs_nc = setup_data[("nc", "spline")]
-    density_c = cs_nc(d)
     cs_nct = setup_data[("nct", "spline")]
-    density_ct = cs_nct(d)
+    atom_data["density_c"] = cs_nc(d)
+    atom_data["density_ct"] = cs_nct(d)
+    atom_data["density_c_cor"] = atom_data["density_c"] - atom_data["density_ct"]
+
 
     # Compute real spherical harmonics on the grid.
-    ls = setup_data["ls"]
-    lmax = max(ls)
     polys = np.zeros(((lmax + 1) ** 2 - 1, grid.size), float)
     polys[0] = grid.points[:, 2]
     polys[1] = grid.points[:, 0]
@@ -457,7 +465,7 @@ def eval_correction(grid, atom_data, setup_data):
                 basis_fns.append(basis * polys[offset + ifn - 1])
                 basist_fns.append(basist * polys[offset + ifn - 1])
 
-    # Debugging check.
+    # Sanity check:
     # Construct the local overlap matrix and compare to the one taken from GPAW.
     olp = np.zeros((len(basis_fns), len(basis_fns)))
     olpt = np.zeros((len(basis_fns), len(basis_fns)))
@@ -481,8 +489,9 @@ def eval_correction(grid, atom_data, setup_data):
     # Loop over all pairs of basis functions and add product times density matrix coeff
     density_v = np.zeros(grid.size)
     density_vt = np.zeros(grid.size)
-    spindensity_v = np.zeros(grid.size)
-    spindensity_vt = np.zeros(grid.size)
+    if spindm is not None:
+        spindensity_v = np.zeros(grid.size)
+        spindensity_vt = np.zeros(grid.size)
     for ibasis0, (phi0, phit0) in enumerate(zip(basis_fns, basist_fns)):
         for ibasis1 in range(ibasis0 + 1):
             phi1 = basis_fns[ibasis1]
@@ -494,26 +503,26 @@ def eval_correction(grid, atom_data, setup_data):
                 spindensity_v += factor * spindm[ibasis0, ibasis1] * phi0 * phi1
                 spindensity_vt += factor * spindm[ibasis0, ibasis1] * phit0 * phit1
 
-    # Sanity check
+    # Store electronic valence densities
     density_v_cor = density_v - density_vt
+    # Sanity check
     assert np.allclose(
         grid.integrate(density_v_cor), np.dot((olp - olpt).ravel(), dm.ravel())
     )
-
-    density_c_cor = density_c - density_ct
-    density_v_cor = density_v - density_vt
-    spindensity_v_cor = spindensity_v - spindensity_vt
-
-    # Store some extra stuff in the atom_data dictionary.
-    atom_data["density_c"] = density_c
-    atom_data["density_ct"] = density_ct
-    atom_data["density_c_cor"] = density_c_cor
     atom_data["density_v"] = density_v
     atom_data["density_vt"] = density_vt
     atom_data["density_v_cor"] = density_v_cor
-    atom_data["spindensity_v"] = spindensity_v
-    atom_data["spindensity_vt"] = spindensity_vt
-    atom_data["spindensity_v_cor"] = spindensity_v_cor
+    if spindm is not None:
+        spindensity_v_cor = spindensity_v - spindensity_vt
+        # Sanity check
+        assert np.allclose(
+            grid.integrate(spindensity_v_cor), np.dot((olp - olpt).ravel(), spindm.ravel())
+        )
+        atom_data["spindensity_v"] = spindensity_v
+        atom_data["spindensity_vt"] = spindensity_vt
+        atom_data["spindensity_v_cor"] = spindensity_v_cor
+
+    return grid
 
 
 def compute_uniform_points(uniform_data):
@@ -561,13 +570,16 @@ def denspart_conventions(uniform_data, atoms):
 
     """
     grid_parts = [GridPart(uniform_data, "pseudo_density")]
+    print("  Uniform grid size:", grid_parts[0].density.size)
     for atom in atoms:
         grid_parts.append(GridPart(atom, "density_c_cor", "density_v_cor"))
+        print("  Atom grid size:", grid_parts[-1].density.size)
     result = {
         "points": np.concatenate([gp.points for gp in grid_parts]),
         "weights": np.concatenate([gp.weights for gp in grid_parts]),
         "density": np.concatenate([gp.density for gp in grid_parts]),
     }
+    print("  Total grid size:", result  ["density"].size)
 
     if uniform_data["nspins"] == 2:
         spin_grid_parts = [GridPart(uniform_data, "pseudo_spindensity")]
