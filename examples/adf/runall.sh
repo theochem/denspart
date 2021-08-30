@@ -18,18 +18,23 @@
 # along with this program; if not, see <http://www.gnu.org/licenses/>
 # --
 
+if $(which amspython); then
+  # Tested with AMS 2021.202
+  source ${ADFHOME}/amsbashrc.sh
+  export SCMLICENSE=your_license.txt
+  # export SCM_TMPDIR="$TMPDIR"
 
-# Tested with AMS 2021.202
-source ${ADFHOME}/amsbashrc.sh
-export SCMLICENSE=your_license.txt
-# export SCM_TMPDIR="$TMPDIR"
+  # Installation is commented out.
+  # amspython -m pip install git+https://github.com/theochem/grid.git
+  # amspython -m pip install git+https://github.com/theochem/iodata.git
+  # amspython -m pip install git+https://github.com/theochem/denspart.git
 
-# Installation is commented out!
-# amspython -m pip install git+https://github.com/theochem/grid.git
-# amspython -m pip install git+https://github.com/theochem/denspart.git
-# amspython -m pip install git+https://github.com/theochem/iodata.git
-
-ams -n 1 < adf-water.in > adf-water.out
-amspython -m denspart.adapters.adf ams.results density.npz
-denspart density.npz results.npz
-denspart-write-extxyz results.npz results.xyz
+  ams -n 1 < adf-water.in > adf-water.out
+  amspython -m denspart.adapters.adf ams.results density.npz
+  amspython -m denspart density.npz results.npz
+  amspython -m denspart.utils.write-extxyz results.npz results.xyz
+else
+  denspart-from-adf ams.results density.npz
+  denspart density.npz results.npz
+  denspart-write-extxyz results.npz results.xyz
+fi

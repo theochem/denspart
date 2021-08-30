@@ -29,7 +29,7 @@ from ase.units import Bohr
 from gpaw.utilities import unpack2
 from gpaw import restart
 
-from grid.atomic_grid import AtomicGrid
+from grid.atomgrid import AtomGrid
 from grid.rtransform import HyperbolicRTransform
 from grid.onedgrid import OneDGrid
 
@@ -349,9 +349,9 @@ def compute_augmentation_spheres(uniform_data, setups, atoms, atnums, atcoords):
 
         # Setup atomic grid within the muffin tin sphere.
         radgrid = setup_data[("nc", "radgrid")]
-        atgrid_short = AtomicGrid(
+        atgrid_short = AtomGrid(
             radgrid,
-            nums=[38] * radgrid.size,
+            sizes=[38] * radgrid.size,
         )
         atom_data["grid_points"] = atgrid_short.points + atcoords[iatom]
         atom_data["grid_weights"] = atgrid_short.weights
@@ -560,8 +560,7 @@ def denspart_conventions(uniform_data, atoms):
         Dictionary with just the data needed for running denspart.
 
     """
-    grid_parts = []
-    grid_parts.append(GridPart(uniform_data, "pseudo_density"))
+    grid_parts = [GridPart(uniform_data, "pseudo_density")]
     for atom in atoms:
         grid_parts.append(GridPart(atom, "density_c_cor", "density_v_cor"))
     result = {
@@ -571,8 +570,7 @@ def denspart_conventions(uniform_data, atoms):
     }
 
     if uniform_data["nspins"] == 2:
-        spin_grid_parts = []
-        spin_grid_parts.append(GridPart(uniform_data, "pseudo_spindensity"))
+        spin_grid_parts = [GridPart(uniform_data, "pseudo_spindensity")]
         for atom in atoms:
             spin_grid_parts.append(GridPart(atom, "spindensity_v_cor"))
         result["spindensity"] = np.concatenate([gp.density for gp in grid_parts])
