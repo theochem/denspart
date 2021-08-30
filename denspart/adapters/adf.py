@@ -106,6 +106,7 @@ def extract_adf(dn_ams_results):
         # Use the AMSJob interface to check if the input was correct.
         job = AMSJob.load_external(dn_ams_results)
         job.check()
+        print(job.settings)
         if not "adf" in job.settings["input"]:
             raise IOError("Only ADF Jobs are supported at the moment.")
         if (

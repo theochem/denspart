@@ -91,7 +91,7 @@ def optimize_pro_model(
     )
     pro_model.ekld_info = None
 
-    def callback(current_pars, opt_result):
+    def callback(_current_pars, opt_result):
         info = pro_model.ekld_info
         # if info is None:
         #    return

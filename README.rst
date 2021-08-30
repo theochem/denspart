@@ -189,21 +189,33 @@ When GPAW is installed, one can run:
 A minimal working example can be found in ``examples/gpaw``.
 
 
-PLAMS (ADF in AMS 2021.202)
----------------------------
+ADF (AMS 2021.202)
+------------------
 
 One may also derive a ``density.npz`` from an ADF AMSJob.
-When `PLAMS <https://github.com/SCM-NV/PLAMS>`_ is installed, the conversion is done as
-follows:
+When `AMS <https://www.scm.com/amsterdam-modeling-suite/>`_ is installed, you can install
+denspart in the AMS Python environment as follows:
+
 
 .. code-block:: bash
 
-    denspart-from-adf ams.results density.npz
+    amspython -m pip install git+https://github.com/theochem/grid.git
+    amspython -m pip install git+https://github.com/theochem/denspart.git
+    # For writing the extended XYZ file:
+    amspython -m pip install git+https://github.com/theochem/iodata.git
+
+
+Then, the conversion and partitioning are done as follows:
+
+.. code-block:: bash
+
+    amspython -m denspart.adapters.adf ams.results density.npz
+    amspython -m denspart density.npz results.npz
+    amspython -m denspart.utils.write-extxyz results.npz results.xyz
 
 where ``ams.results`` is the directory with output files. You need to disable symmetry
 and write out the TAPE10 file. More details can be found the the ``denspart.adapters.adf``
-module. When you have ADF installed, you may need to use ``amspython``, which is a bit
-awkward. A minimal working example can be found in ``examples/adf``.
+module. A minimal working example can be found in ``examples/adf``.
 
 
 Psi4
