@@ -435,7 +435,6 @@ def eval_correction(atom_data, setup_data):
     atom_data["density_ct"] = cs_nct(d)
     atom_data["density_c_cor"] = atom_data["density_c"] - atom_data["density_ct"]
 
-
     # Compute real spherical harmonics on the grid.
     polys = np.zeros(((lmax + 1) ** 2 - 1, grid.size), float)
     polys[0] = grid.points[:, 2]
@@ -516,7 +515,8 @@ def eval_correction(atom_data, setup_data):
         spindensity_v_cor = spindensity_v - spindensity_vt
         # Sanity check
         assert np.allclose(
-            grid.integrate(spindensity_v_cor), np.dot((olp - olpt).ravel(), spindm.ravel())
+            grid.integrate(spindensity_v_cor),
+            np.dot((olp - olpt).ravel(), spindm.ravel()),
         )
         atom_data["spindensity_v"] = spindensity_v
         atom_data["spindensity_vt"] = spindensity_vt
@@ -579,7 +579,7 @@ def denspart_conventions(uniform_data, atoms):
         "weights": np.concatenate([gp.weights for gp in grid_parts]),
         "density": np.concatenate([gp.density for gp in grid_parts]),
     }
-    print("  Total grid size:", result  ["density"].size)
+    print("  Total grid size:", result["density"].size)
 
     if uniform_data["nspins"] == 2:
         spin_grid_parts = [GridPart(uniform_data, "pseudo_spindensity")]

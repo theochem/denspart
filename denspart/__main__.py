@@ -26,29 +26,30 @@ import numpy as np
 from grid.basegrid import Grid
 from grid.periodicgrid import PeriodicGrid
 
-from denspart.mbis import partition
+from denspart.mbis import MBISProModel
+from denspart.vh import optimize_reduce_pro_model
 from denspart.properties import compute_radial_moments, compute_multipole_moments
 
 
 __all__ = ["main"]
 
 
-def main():
+def main(args=None):
     """Partitioning command-line interface."""
-    args = parse_args()
+    args = parse_args(args)
     data = np.load(args.in_npz)
     if "cellvecs" not in data or data["cellvecs"].size == 0:
         grid = Grid(data["points"], data["weights"])
     else:
-        print("Using Periodic Grid")
+        print("Using periodic grid")
         grid = PeriodicGrid(
             data["points"], data["weights"], data["cellvecs"], wrap=True
         )
     density = data["density"]
     print("MBIS partitioning --")
-    pro_model, localgrids = partition(
-        data["atnums"],
-        data["atcoords"],
+    pro_model_init = MBISProModel.from_geometry(data["atnums"], data["atcoords"])
+    pro_model, localgrids = optimize_reduce_pro_model(
+        pro_model_init,
         grid,
         density,
         args.gtol,
@@ -58,11 +59,9 @@ def main():
     print("Promodel")
     pro_model.pprint()
     print("Computing additional properties")
-    results = pro_model.get_results()
+    results = pro_model.to_dict()
     results.update(
         {
-            "atnums": data["atnums"],
-            "atcoords": data["atcoords"],
             "charges": pro_model.charges,
             "radial_moments": compute_radial_moments(
                 pro_model, grid, density, localgrids
@@ -75,15 +74,11 @@ def main():
             "density_cutoff": args.density_cutoff,
         }
     )
-    # TODO: make it easy to reconstruct a pro-model from the saved results.
-    # This would at least require the class name of the pro-model to be stored.
-    # Storing as a pickle would make this easy, but is insufficient for
-    # long-term archival.
     np.savez(args.out_npz, **results)
     print("Sum of charges: ", sum(pro_model.charges))
 
 
-def parse_args():
+def parse_args(args=None):
     """Parse command-line arguments."""
     description = "Density partitioning of a given density on a grid."
     parser = argparse.ArgumentParser(prog="denspart", description=description)
@@ -113,7 +108,7 @@ def parse_args():
         "Set to zero for while grid integrations (molecules only). "
         "[default=%(default)s]",
     )
-    return parser.parse_args()
+    return parser.parse_args(args)
 
 
 if __name__ == "__main__":

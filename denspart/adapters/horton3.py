@@ -124,6 +124,7 @@ def _setup_grid(atnums, atcoords, nrad, nang):
     assert np.isfinite(grid.points).all()
     assert np.isfinite(grid.weights).all()
     assert (grid.weights >= 0).all()
+    # TODO: remove grid points with zero weight
     return grid
 
 
@@ -167,6 +168,7 @@ def main():
     print("Loading file", args.fn_wfn)
     iodata = load_one(args.fn_wfn)
     grid, density = prepare_input(iodata, args.nrad, args.nang, args.chunk_size)
+    # TODO: remove points whose weight * density drops below some cutoff.
     np.savez(
         args.fn_density,
         **{

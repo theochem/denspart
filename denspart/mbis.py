@@ -19,6 +19,9 @@
 # pylint: disable=too-many-lines
 """Minimal Basis Iterative Stockholder."""
 
+
+from itertools import combinations
+
 import numpy as np
 
 try:
@@ -29,46 +32,10 @@ except ImportError:
 from .vh import (
     BasisFunction,
     ProModel,
-    optimize_pro_model,
 )
 
 
-__all__ = ["partition"]
-
-
-def partition(
-    atnums, atcoords, grid, density, gtol=1e-8, maxiter=1000, density_cutoff=1e-10
-):
-    """Perform a basic MBIS partitioning.
-
-    Parameters
-    ----------
-    atnums
-        Atomic numbers
-    atcoords
-        Atomic coordinates
-    grid
-        A molecular integration grid, with support for subgrids.
-    density
-        The electron density on the grid
-    gtol
-        Convergence parameter gtol of SciPy's trust-constr minimizer.
-    maxiter
-        Maximum number of iterations in SciPy's trust-constr minimizer.
-    density_cutoff
-        Density cutoff used to estimated sizes of local grids. Set to zero for
-        whole-grid integrations. (This will not work for periodic systems.)
-
-    Returns
-    -------
-    pro_model
-        The optimized pro-density model.
-
-    """
-    # TODO: this function does not do much. It might be abandonded in favor of
-    # some logic in the CLI code.
-    pro_model = MBISProModel(atnums, atcoords)
-    return optimize_pro_model(pro_model, grid, density, gtol, maxiter, density_cutoff)
+__all__ = ["MBISProModel"]
 
 
 class ExponentialFunction(BasisFunction):
@@ -80,12 +47,16 @@ class ExponentialFunction(BasisFunction):
     def __init__(self, iatom, center, pars):
         if len(pars) != 2 and not (pars >= 0).all():
             raise TypeError("Expecting two positive parameters.")
-        super().__init__(iatom, center, pars, [(0.1, 1e2), (0.1, 1e3)])
-        self.dists = None
+        super().__init__(iatom, center, pars, [(5e-5, 1e2), (0.1, 1e3)])
 
     @property
     def population(self):
         return self.pars[0]
+
+    @property
+    def exponent(self):  # noqa: D401
+        """Exponent of the exponential functions."""
+        return self.pars[1]
 
     @property
     def population_derivatives(self):
@@ -134,34 +105,92 @@ if jit is not None:
     jit_compute_derivatives = jit(fastmath=True, nopython=True)(jit_compute_derivatives)
 
 
+def connected_vertices(pairs, vertices):
+    """Derive the connected vertices from a list of pairs.
+
+    Note: this could be done more efficiently with NetworkX or similar libraries, but
+    adding a heavy dependency for a simple feature is not worth it.
+    """
+    lookup = dict((vertex, [vertex]) for vertex in vertices)
+    for pair in pairs:
+        item0, item1 = pair
+        members0 = lookup.get(item0)
+        members1 = lookup.get(item1)
+        if members0 is None:
+            if members1 is None:
+                cluster = [item0, item1]
+                lookup[item0] = cluster
+                lookup[item1] = cluster
+            else:
+                members1.append(item0)
+                lookup[item0] = members1
+        else:
+            if members1 is None:
+                members0.append(item1)
+                lookup[item1] = members0
+            else:
+                members0.extend(members1)
+                for item in members1:
+                    lookup[item] = members0
+    return set(frozenset(cluster) for cluster in lookup.values())
+
+
 class MBISProModel(ProModel):
     """ProModel for MBIS partitioning."""
 
-    def __init__(self, atnums, atcoords):
-        """Construct an MBIS ProModel with a sensible initial guess."""
+    @classmethod
+    def from_geometry(cls, atnums, atcoords):
+        """Derive a ProModel with a sensible initial guess from a molecular geometry."""
         fns = []
         for iatom, (atnum, atcoord) in enumerate(zip(atnums, atcoords)):
             for population, exponent in INITIAL_MBIS_PARAMETERS[atnum]:
                 fns.append(ExponentialFunction(iatom, atcoord, [population, exponent]))
-        super().__init__(atnums, atcoords, fns)
+        return cls(atnums, atcoords, fns)
 
-    def get_results(self):
+    def reduce(self, eps=1e-4):
+        """Return a new ProModel in which redundant functions are merged together.
+
+        Parameters
+        ----------
+        eps
+            When abs(e1 - e2) < eps * (e1 + e2) / 2, were e1 and e2 are exponents,
+            two functions will be merged. Also when the population of a basis function
+            is lower then eps, it is removed.
+
+        """
+        pro_model = super().reduce(eps)
+        # Group functions by atoms
+        grouped_fns = {}
+        for fn in pro_model.fns:
+            grouped_fns.setdefault(fn.iatom, []).append(fn)
+        # Loop over all atoms and merge where possible
+        new_fns = []
+        for iatom, fns in grouped_fns.items():
+            pairs = [
+                (fn1, fn2)
+                for fn1, fn2 in combinations(fns, 2)
+                if abs(fn1.exponent - fn2.exponent)
+                < eps * (fn1.exponent + fn2.exponent) / 2
+            ]
+            clusters = connected_vertices(pairs, fns)
+            for cluster in clusters:
+                population = sum(fn.population for fn in cluster)
+                exponent = sum(fn.exponent for fn in cluster) / len(cluster)
+                new_fns.append(
+                    ExponentialFunction(
+                        iatom, pro_model.atcoords[iatom], [population, exponent]
+                    )
+                )
+        return pro_model.__class__(pro_model.atnums, pro_model.atcoords, new_fns)
+
+    def to_dict(self):
         """Return dictionary with additional results derived from the pro-parameters."""
-        results = super().get_results()
+        results = super().to_dict()
         valence_charges = np.zeros(self.natom, dtype=float)
         valence_widths = np.zeros(self.natom, dtype=float)
         for fn in self.fns:
             width = 1 / fn.pars[1]
-            # Check for degenerate exponents and merge them
-            # In this case, average the valence widths and sum the valence charge
-            if (
-                width - 1e-4 < valence_widths[fn.iatom]
-                and width + 1e-4 > valence_widths[fn.iatom]
-            ):
-                print("Merging shells on atom %d" % fn.iatom)
-                valence_widths[fn.iatom] = 0.5 * (valence_widths[fn.iatom] + width)
-                valence_charges[fn.iatom] -= fn.pars[0]
-            elif width > valence_widths[fn.iatom]:
+            if width > valence_widths[fn.iatom]:
                 valence_widths[fn.iatom] = width
                 valence_charges[fn.iatom] = -fn.pars[0]
 
@@ -174,6 +203,24 @@ class MBISProModel(ProModel):
             }
         )
         return results
+
+    @classmethod
+    def from_dict(cls, data):
+        """Recreate the pro-model from a dictionary."""
+        if data["class"] != "MBISProModel":
+            raise TypeError("The dictionary class field should be MBISProModel.")
+        fns = []
+        ipar = 0
+        atnums = data["atnums"]
+        atcoords = data["atcoords"]
+        pars = data["propars"]
+        atnfns = data["atnfns"]
+        for iatom, atcoord in enumerate(atcoords):
+            for _ in range(atnfns[iatom]):
+                fn_pars = pars[ipar : ipar + 2]
+                fns.append(ExponentialFunction(iatom, atcoord, fn_pars))
+                ipar += 2
+        return cls(atnums, atcoords, fns)
 
 
 INITIAL_MBIS_PARAMETERS = {

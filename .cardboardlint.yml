@@ -1,3 +1,5 @@
+pre_filefilter: ['- *.npz', '+ *']
+
 linters:
   - import:
       packages: ['denspart']

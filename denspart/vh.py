@@ -29,7 +29,28 @@ import numpy as np
 from scipy.optimize import minimize
 
 
-__all__ = ["optimize_pro_model", "BasisFunction", "ProModel", "ekld"]
+__all__ = ["optimize_reduce_pro_model", "BasisFunction", "ProModel", "ekld"]
+
+
+def optimize_reduce_pro_model(
+    pro_model, grid, density, gtol=1e-8, maxiter=1000, density_cutoff=1e-10
+):
+    """Optimize the pro-model and removed redundant basis functions.
+
+    Parameters
+    ----------
+    See optimize_pro_model for details.
+
+    """
+    while True:
+        pro_model, localgrids = optimize_pro_model(
+            pro_model, grid, density, gtol, maxiter, density_cutoff
+        )
+        reduced_pro_model = pro_model.reduce()
+        if len(pro_model.fns) == len(reduced_pro_model.fns):
+            return pro_model, localgrids
+        print("Restarting optimization with reduced pro-model.")
+        pro_model = reduced_pro_model
 
 
 def optimize_pro_model(
@@ -200,8 +221,28 @@ class BasisFunction:
         raise NotImplementedError
 
 
-class ProModel:
+class ProModelMeta(type):
+    """Meta class for ProModel classes.
+
+    This meta class registers all subclasses, making it easy to recreate a ProModel
+    instance from the data stored in an NPZ file. Note that Python pickle files are
+    not used for storing result because these are not suitable for long-term data
+    preservation.
+
+    """
+
+    registry = {}
+
+    def __new__(mcs, name, bases, namespace, **kwargs):
+        result = super().__new__(mcs, name, bases, namespace, **kwargs)
+        ProModelMeta.registry[name] = result
+        return result
+
+
+class ProModel(metaclass=ProModelMeta):
     """Base class for the promolecular density."""
+
+    registry = {}
 
     def __init__(self, atnums, atcoords, fns):
         """Initialize the prodensity model.
@@ -218,7 +259,6 @@ class ProModel:
         self.atnums = atnums
         self.atcoords = atcoords
         self.fns = fns
-        self.ncompute = 0
 
     @property
     def natom(self):  # noqa: D401
@@ -233,19 +273,60 @@ class ProModel:
             charges[fn.iatom] -= fn.population
         return charges
 
-    def get_results(self):
-        """Return dictionary with additional results derived from the pro-parameters."""
+    @classmethod
+    def from_geometry(cls, atnums, atcoords):
+        """Derive a ProModel with a sensible initial guess from a molecular geometry."""
+        raise NotImplementedError
+
+    def reduce(self, eps=1e-4):
+        """Return a new ProModel in which redundant functions are merged together.
+
+        Parameters
+        ----------
+        eps
+            When the population of a basis function is lower then eps, it is removed.
+
+        """
+        new_fns = [fn for fn in self.fns if fn.population > eps]
+        return self.__class__(self.atnums, self.atcoords, new_fns)
+
+    def to_dict(self):
+        """Return a dictionary representation of the pro-model, with with additional.
+
+        Notes
+        -----
+        The primary purpose is to include sufficient information in the returend result
+        to reconstruct this instance from the dictionary.
+
+        It is recommended that subclasses try to include additional information that may
+        be convenient for end users.
+
+        All values in the dictionary must be np.ndarray instances.
+
+        """
         # Number of functions per atom
-        atnfn = np.zeros(self.natom, dtype=int)
-        atnpar = np.zeros(self.natom, dtype=int)
+        atnfns = np.zeros(self.natom, dtype=int)
+        # Number of parameters per atom
+        atnpars = np.zeros(self.natom, dtype=int)
         for fn in self.fns:
-            atnfn[fn.iatom] += 1
-            atnpar[fn.iatom] += len(fn.pars)
+            atnfns[fn.iatom] += 1
+            atnpars[fn.iatom] += len(fn.pars)
         return {
-            "atnfn": atnfn,
-            "atnpar": atnpar,
+            "class": np.array(self.__class__.__name__),
+            "atnums": self.atnums,
+            "atcoords": self.atcoords,
+            "atnfns": atnfns,
+            "atnpars": atnpars,
             "propars": np.concatenate([fn.pars for fn in self.fns]),
         }
+
+    @classmethod
+    def from_dict(cls, data):
+        """Create an instance of a ProModel subclass from a dictionary made with to_dict."""
+        subcls = ProModelMeta.registry[str(data["class"])]
+        if cls == subcls:
+            raise TypeError("Cannot instantiate ProModel base class.")
+        return subcls.from_dict(data)
 
     @property  # noqa: D401
     def population(self):
@@ -275,7 +356,6 @@ class ProModel:
             The prodensity on the points of ``grid``.
 
         """
-        self.ncompute += 1
         pro = np.zeros_like(grid.weights)
         for fn, localgrid in zip(self.fns, localgrids):
             np.add.at(pro, localgrid.indices, fn.compute(localgrid.points))

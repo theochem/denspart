@@ -62,6 +62,7 @@ setup(
         "denspart",
         "denspart.adapters",
         "denspart.adapters.test",
+        "denspart.test",
         "denspart.utils",
     ],
     entry_points={
