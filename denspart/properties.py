@@ -91,9 +91,7 @@ def compute_multipole_moments(pro_model, grid, density, localgrids, lmax=4):
         # TODO: improve cutoff
         localgrid = grid.get_localgrid(atcoord, 8.0)
         operators = np.zeros(((lmax + 1) ** 2 - 1, localgrid.size))
-        operators[0] = localgrid.points[:, 2]
-        operators[1] = localgrid.points[:, 0]
-        operators[2] = localgrid.points[:, 1]
+        operators[:3] = (localgrid.points - atcoord)[:, [2, 0, 1]].T
         spherical_harmonics(operators, lmax, solid=True)
         pro_atom = pro_model.compute_proatom(iatom, localgrid)
         ratio = pro_atom / pro[localgrid.indices]
