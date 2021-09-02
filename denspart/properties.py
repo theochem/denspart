@@ -53,7 +53,7 @@ def compute_radial_moments(pro_model, grid, density, localgrids, nmax=4):
         # TODO: improve cutoff
         localgrid = grid.get_localgrid(atcoord, 8.0)
         dists = np.linalg.norm(localgrid.points - atcoord, axis=1)
-        pro_atom = pro_model.compute_proatom(iatom, localgrid)
+        pro_atom = pro_model.compute_proatom(iatom, localgrid.points)
         ratio = pro_atom / pro[localgrid.indices]
         for degree in np.arange(nmax + 1):
             result[iatom, degree] = localgrid.integrate(
@@ -93,7 +93,7 @@ def compute_multipole_moments(pro_model, grid, density, localgrids, lmax=4):
         operators = np.zeros(((lmax + 1) ** 2 - 1, localgrid.size))
         operators[:3] = (localgrid.points - atcoord)[:, [2, 0, 1]].T
         spherical_harmonics(operators, lmax, solid=True)
-        pro_atom = pro_model.compute_proatom(iatom, localgrid)
+        pro_atom = pro_model.compute_proatom(iatom, localgrid.points)
         ratio = pro_atom / pro[localgrid.indices]
         for iop, operator in enumerate(operators):
             result[iatom, iop] = localgrid.integrate(

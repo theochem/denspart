@@ -295,7 +295,7 @@ class ProModel(metaclass=ProModelMeta):
 
         Notes
         -----
-        The primary purpose is to include sufficient information in the returend result
+        The primary purpose is to include sufficient information in the returned result
         to reconstruct this instance from the dictionary.
 
         It is recommended that subclasses try to include additional information that may
@@ -353,7 +353,7 @@ class ProModel(metaclass=ProModelMeta):
         Returns
         -------
         pro
-            The prodensity on the points of ``grid``.
+            The pro-molecule density on the points of ``grid``.
 
         """
         pro = np.zeros_like(grid.weights)
@@ -361,26 +361,26 @@ class ProModel(metaclass=ProModelMeta):
             np.add.at(pro, localgrid.indices, fn.compute(localgrid.points))
         return pro
 
-    def compute_proatom(self, iatom, grid):
-        """Compute proatom density on a grid (for the given parameters).
+    def compute_proatom(self, iatom, points):
+        """Compute proatom density on a set of points.
 
         Parameters
         ----------
         iatom
             The atomic index.
-        grid
-            The whole integration grid, on which the results is computed.
+        points
+            A set of points on which the proatom must be computed.
 
         Returns
         -------
         pro
-            The prodensity on the points of ``grid``.
+            The pro-atom density on the points of ``grid``.
 
         """
-        pro = np.zeros_like(grid.weights)
+        pro = 0
         for fn in self.fns:
             if fn.iatom == iatom:
-                pro += fn.compute(grid.points)
+                pro += fn.compute(points)
         return pro
 
     def pprint(self):
