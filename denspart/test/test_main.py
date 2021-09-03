@@ -29,7 +29,7 @@ from ..vh import ProModel
 from ..__main__ import main
 
 
-def test_cli():
+def test_cli(ndarrays_regression):
     with resources.path("denspart.test", "density-water.npz") as fn_npz:
         with tempfile.TemporaryDirectory("denspart", "test_cli") as dn:
             fn_results = os.path.join(dn, "results.npz")
@@ -38,3 +38,4 @@ def test_cli():
             results = np.load(fn_results)
             pro_model = ProModel.from_dict(results)
     assert len(pro_model.fns) == 4
+    ndarrays_regression.check(dict(results))
