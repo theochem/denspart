@@ -25,6 +25,32 @@ import numpy as np
 __all__ = ["compute_radial_moments", "compute_multipole_moments", "spherical_harmonics"]
 
 
+def safe_ratio(density, pro, density_cutoff=1e-15):
+    """Compute density / pro, with safeguards for small values.
+
+    Parameters
+    ----------
+    density
+        The "real" density.
+    pro
+        The "model" density.
+    density_cutoff
+        Densities below this cutoff are ignored.
+
+    Returns
+    -------
+    ratio
+        density / pro, or zero when density or pro are below the cutoff.
+
+    """
+    # Compute potentially tricky quantities.
+    sick = (density < density_cutoff) | (pro < density_cutoff)
+    with np.errstate(all="ignore"):
+        ratio = density / pro
+    ratio[sick] = 0.0
+    return ratio
+
+
 def compute_radial_moments(pro_model, grid, density, localgrids, nmax=4):
     """Compute expectation values of r^n for each atom.
 
@@ -54,10 +80,10 @@ def compute_radial_moments(pro_model, grid, density, localgrids, nmax=4):
         localgrid = grid.get_localgrid(atcoord, 8.0)
         dists = np.linalg.norm(localgrid.points - atcoord, axis=1)
         pro_atom = pro_model.compute_proatom(iatom, localgrid.points)
-        ratio = pro_atom / pro[localgrid.indices]
+        ratio = safe_ratio(density[localgrid.indices], pro[localgrid.indices])
         for degree in np.arange(nmax + 1):
             result[iatom, degree] = localgrid.integrate(
-                density[localgrid.indices], dists ** degree, ratio
+                pro_atom, ratio, dists ** degree
             )
     return result
 
@@ -94,10 +120,10 @@ def compute_multipole_moments(pro_model, grid, density, localgrids, lmax=4):
         operators[:3] = (localgrid.points - atcoord)[:, [2, 0, 1]].T
         spherical_harmonics(operators, lmax, solid=True)
         pro_atom = pro_model.compute_proatom(iatom, localgrid.points)
-        ratio = pro_atom / pro[localgrid.indices]
+        ratio = safe_ratio(density[localgrid.indices], pro[localgrid.indices])
         for iop, operator in enumerate(operators):
             result[iatom, iop] = localgrid.integrate(
-                density[localgrid.indices], operator, ratio
+                pro_atom, ratio, operator
             )
     return result
 
