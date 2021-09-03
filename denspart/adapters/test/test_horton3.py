@@ -19,15 +19,17 @@
 """Test the input preparation with HORTON3 modules."""
 
 from importlib.resources import path
+import os
+import tempfile
 
 import pytest
 
+import numpy as np
 from numpy.testing import assert_allclose
 
-from iodata import load_one
 from iodata.utils import FileFormatWarning
 
-from ..horton3 import prepare_input
+from ..horton3 import main
 
 
 FILENAMES = [
@@ -121,9 +123,15 @@ FILENAMES = [
 @pytest.mark.parametrize("fn_wfn", FILENAMES)
 def test_integrate_density(fn_wfn):
     with path("iodata.test.data", fn_wfn) as fn_full:
-        with pytest.warns(None) as record:
-            iodata = load_one(str(fn_full))
-        if len(record) == 1:
-            assert issubclass(record[0].category, FileFormatWarning)
-    grid, density = prepare_input(iodata, 150, 194, 10000)
-    assert_allclose(grid.integrate(density), iodata.mo.nelec, atol=1e-2)
+        with tempfile.TemporaryDirectory("denspart", "test_integrate_density") as dn:
+            fn_density = os.path.join(dn, "density.npz")
+            with pytest.warns(None) as record:
+                main([str(fn_full), fn_density, "-s", "-g", "-o"])
+            if len(record) == 1:
+                assert issubclass(record[0].category, FileFormatWarning)
+            assert os.path.isfile(fn_density)
+            data = dict(np.load(fn_density))
+
+    assert "atom0/points" in data
+    nelec = np.dot(data["density"], data["weights"])
+    assert_allclose(nelec, data["nelec"], atol=1e-2)
