@@ -120,9 +120,7 @@ def _setup_grid(atnums, atcoords, nrad, nang, store_atgrids):
     becke._radii[54] = 3.5
     oned = GaussChebyshev(nrad)
     rgrid = BeckeTF(1e-4, 1.5).transform_1d_grid(oned)
-    grid = MolGrid.horton_molgrid(
-        atnums, atcoords, rgrid, nang, becke, store=store_atgrids
-    )
+    grid = MolGrid.from_size(atnums, atcoords, rgrid, nang, becke, store=store_atgrids)
     assert np.isfinite(grid.points).all()
     assert np.isfinite(grid.weights).all()
     assert (grid.weights >= 0).all()

@@ -74,7 +74,7 @@ def main(args=None):
             "density_cutoff": args.density_cutoff,
         }
     )
-    np.savez(args.out_npz, **results)
+    np.savez_compressed(args.out_npz, **results)
     print("Sum of charges: ", sum(pro_model.charges))
 
 

@@ -211,7 +211,7 @@ def write_output(fn_npz, data):
     print(f"Total charge:            {charge:10.3e}")
 
     mask = data["weights"] != 0.0
-    np.savez(
+    np.savez_compressed(
         fn_npz,
         atnums=data["atnums"],
         atcorenums=data["atcorenums"],

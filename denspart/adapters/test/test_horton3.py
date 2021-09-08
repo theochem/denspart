@@ -18,9 +18,8 @@
 # --
 """Test the input preparation with HORTON3 modules."""
 
-from importlib.resources import path
+from importlib import resources
 import os
-import tempfile
 
 import pytest
 
@@ -121,17 +120,32 @@ FILENAMES = [
 
 
 @pytest.mark.parametrize("fn_wfn", FILENAMES)
-def test_integrate_density(fn_wfn):
-    with path("iodata.test.data", fn_wfn) as fn_full:
-        with tempfile.TemporaryDirectory("denspart", "test_integrate_density") as dn:
-            fn_density = os.path.join(dn, "density.npz")
-            with pytest.warns(None) as record:
-                main([str(fn_full), fn_density, "-s", "-g", "-o"])
-            if len(record) == 1:
-                assert issubclass(record[0].category, FileFormatWarning)
-            assert os.path.isfile(fn_density)
-            data = dict(np.load(fn_density))
+def test_from_horton3_density(fn_wfn, tmpdir):
+    with resources.path("iodata.test.data", fn_wfn) as fn_full:
+        fn_density = os.path.join(tmpdir, "density.npz")
+        with pytest.warns(None) as record:
+            main([str(fn_full), fn_density])
+        if len(record) == 1:
+            assert issubclass(record[0].category, FileFormatWarning)
+        assert os.path.isfile(fn_density)
+        data = dict(np.load(fn_density))
 
-    assert "atom0/points" in data
     nelec = np.dot(data["density"], data["weights"])
     assert_allclose(nelec, data["nelec"], atol=1e-2)
+
+
+@pytest.mark.parametrize("fn_wfn", ["hf_sto3g.fchk", "water_sto3g_hf_g03.fchk"])
+def test_from_horton3_all(fn_wfn, tmpdir):
+    with resources.path("iodata.test.data", fn_wfn) as fn_full:
+        fn_density = os.path.join(tmpdir, "density.npz")
+        with pytest.warns(None) as record:
+            main([str(fn_full), fn_density, "-s", "-g", "-o"])
+        if len(record) == 1:
+            assert issubclass(record[0].category, FileFormatWarning)
+        assert os.path.isfile(fn_density)
+        data = dict(np.load(fn_density))
+
+    assert "atom0/points" in data
+    assert "density_gradient" in data
+    assert "orbitals" in data
+    assert "orbitals_gradient" in data

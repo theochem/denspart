@@ -95,5 +95,5 @@ def write_density_npz(wfn, fn_npz="density.npz"):
         "atcoords": molarrays[0],
     }
     print("Number of electrons", np.dot(data[:, 3], data[:, 4]))
-    np.savez(fn_npz, **denspart)
+    np.savez_compressed(fn_npz, **denspart)
     print("Written", fn_npz)
