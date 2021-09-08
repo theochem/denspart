@@ -1,4 +1,4 @@
-pre_filefilter: ['- *.npz', '+ *']
+pre_filefilter: ['- *.npz', '- *.gz', '+ *']
 
 linters:
   - import:

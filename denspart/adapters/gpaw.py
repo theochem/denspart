@@ -293,12 +293,17 @@ def dump_spline(data, key, y, setup, l):
     rcut = max(setup.rcut_j)
     # The following is the size of the grid within the muffin tin sphere.
     size_short = int(np.ceil(rcut / (a + b * rcut)))
-    # Correct normalization
-    ycorrected = y * np.sqrt((2 * l + 1) / np.pi) / 2
 
+    # Create radial grid.
     rtf = HyperbolicRTransform(a, b)
     odg = OneDGrid(np.arange(size_short), np.ones(size_short), (0, size_short))
     rad_short = rtf.transform_1d_grid(odg)
+    # Sanity checks
+    assert_allclose(rad_short.points, setup.rgd.r_g[:size_short])
+    assert_allclose(rad_short.weights, setup.rgd.dr_g[:size_short])
+
+    # Correct normalization and create spline.
+    ycorrected = y * np.sqrt((2 * l + 1) / np.pi) / 2
     cs_short = CubicSpline(rad_short.points, ycorrected[:size_short], bc_type="natural")
 
     # Radial grid within the muffin tin sphere
@@ -391,7 +396,7 @@ def compute_augmentation_spheres(uniform_data, setups, atoms, atnums, atcoords):
 
 
 def eval_correction(atom_data, setup_data):
-    """Compute the projected to all-electron corrections for one muffin-tin sphere.
+    """Compute the pseudo to all-electron corrections for one muffin-tin sphere.
 
     Parameters
     ----------
@@ -408,7 +413,7 @@ def eval_correction(atom_data, setup_data):
     Notes
     -----
     Conventions used in variable names, following GPAW conventions:
-    - with t = projected
+    - with t = pseudo
     - without t = all-electron
     - c = core
     - v = valence
@@ -435,7 +440,7 @@ def eval_correction(atom_data, setup_data):
     atom_data["density_ct"] = cs_nct(d)
     atom_data["density_c_cor"] = atom_data["density_c"] - atom_data["density_ct"]
 
-    # Compute real spherical harmonics on the grid.
+    # Compute real spherical harmonics (with Racah normalization) on the grid.
     polys = np.zeros(((lmax + 1) ** 2 - 1, grid.size), float)
     polys[0] = grid.points[:, 2]
     polys[1] = grid.points[:, 0]
@@ -459,10 +464,11 @@ def eval_correction(atom_data, setup_data):
         else:
             # Number of spherical harmonics and offset in the polys array.
             nfn = 2 * l + 1
-            offset = l ** 2
+            offset = l ** 2 - 1
             for ifn in range(nfn):
-                basis_fns.append(basis * polys[offset + ifn - 1])
-                basist_fns.append(basist * polys[offset + ifn - 1])
+                poly = polys[offset + ifn]
+                basis_fns.append(basis * poly)
+                basist_fns.append(basist * poly)
 
     # Sanity check:
     # Construct the local overlap matrix and compare to the one taken from GPAW.
@@ -599,18 +605,18 @@ class GridPart:
         self.density = sum(data[name] for name in densnames).ravel()
 
 
-def main():
+def main(args=None):
     """Command-line interface."""
-    args = parse_args()
+    args = parse_args(args)
     print("Loading file", args.fn_gpw)
     atoms, calc = restart(args.fn_gpw, txt="/dev/null")
     print("Recomputing the energy to restore internal GPAW data structures.")
     atoms.get_potential_energy()
     density = prepare_input(atoms, calc)
-    np.savez(args.fn_density, **density)
+    np.savez_compressed(args.fn_density, **density)
 
 
-def parse_args():
+def parse_args(args):
     """Parse command-line arguments."""
     description = "Convert a gpw file from GPAW into denspart input."
     parser = argparse.ArgumentParser(prog="denspart-from-gpaw", description=description)
@@ -619,7 +625,7 @@ def parse_args():
         "fn_density",
         help="The NPZ file in which the grid and the density will be stored.",
     )
-    return parser.parse_args()
+    return parser.parse_args(args)
 
 
 if __name__ == "__main__":

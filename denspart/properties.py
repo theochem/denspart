@@ -126,7 +126,7 @@ def compute_multipole_moments(pro_model, grid, density, localgrids, lmax=4):
     return result
 
 
-def spherical_harmonics(work, lmax, solid=False, racah=False):
+def spherical_harmonics(work, lmax, solid=False, racah=None):
     """Recursive calculation of spherical harmonics.
 
     Parameters
@@ -140,16 +140,21 @@ def spherical_harmonics(work, lmax, solid=False, racah=False):
         Maximum angular momentum. The work array should have at least (lmax + 1)**2 - 1
         elements along the first dimension.
     solid
-        When True, the real solid harmonics are computed instead of the normal spherical
-        harmonics.
+        When True, the real regular solid harmonics are computed instead of the normal
+        spherical harmonics.
     racah
-        Use Racah's normalization. In this case, the L2 norm of the spherical harmonics
-        is 4 pi / (2 l + 1). This option is only relevant for normal spherical harmonics.
-        It does not affect the solid harmonics.
+        Use Racah's normalization. The default is False for conventional spherical harmonics
+        and True for solid harmonics. Setting this to False for solid harmonics will
+        raise an error. When ``racah==True``, the L2 norm of the spherical harmonics is
+        4 pi / (2 l + 1).
 
     """
-    if lmax <= 1:
-        return
+    if racah is None:
+        racah = solid
+    if solid and not racah:
+        raise ValueError(
+            "Regular solid spherical harmonics always use racah normalization."
+        )
     if work.shape[0] < (lmax + 1) ** 2 - 1:
         raise ValueError("Work array is too small for given lmax.")
 
@@ -217,7 +222,8 @@ def spherical_harmonics(work, lmax, solid=False, racah=False):
         work /= 2 * np.sqrt(np.pi)
         begin = 0
         end = 3
-        for l in range(2, lmax + 1):
+        for l in range(1, lmax + 1):
+            print(begin, end, 2 * l + 1)
             work[begin:end] *= np.sqrt(2 * l + 1)
             begin = end
-            end += 2 * l + 1
+            end += 2 * l + 3

@@ -65,6 +65,7 @@ setup(
         "denspart.test",
         "denspart.utils",
     ],
+    include_package_data=True,
     entry_points={
         "console_scripts": [
             "denspart-from-horton3 = denspart.adapters.horton3:main",

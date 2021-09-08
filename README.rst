@@ -254,6 +254,7 @@ The development environment is configured as follows:
     # - Mandatory, but not yet included in setup.py
     pip install git+https://github.com/theochem/grid.git
     # - Optional, for testing and interfaces, not included in setup.py
+    pip install --upgrade scipy
     pip install --upgrade git+https://github.com/theochem/iodata.git
     pip install --upgrade git+https://github.com/theochem/gbasis.git
     pip install --upgrade git+https://github.com/tovrstra/pytest-regressions@npz
