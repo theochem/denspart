@@ -122,9 +122,7 @@ def compute_multipole_moments(pro_model, grid, density, localgrids, lmax=4):
         pro_atom = pro_model.compute_proatom(iatom, localgrid.points)
         ratio = safe_ratio(density[localgrid.indices], pro[localgrid.indices])
         for iop, operator in enumerate(operators):
-            result[iatom, iop] = localgrid.integrate(
-                pro_atom, ratio, operator
-            )
+            result[iatom, iop] = localgrid.integrate(pro_atom, ratio, operator)
     return result
 
 
