@@ -31,14 +31,13 @@ Install (with dependencies):
 Usage
 =====
 
-With the basic setup, one needs to construct a ``density.npz`` file, which is used as input
-for the ``denspart`` script. (The optional dependencies below provide convenient tools
-to make such files.)
+One needs to construct a ``density.npz`` file, which is used as input for the ``denspart``
+script. (The optional dependencies below provide convenient tools to make such files.)
 
 The file ``density.npz`` uses the NumPy ZIP (NPZ) format, which is a simple container file
 format for arrays. More details on NPZ can be found here in `the NumPy documentation
 <https://numpy.org/doc/stable/reference/routines.io.html>`_. The file ``density.npz``
-contains the following arrays:
+should contain at least the following arrays:
 
 - ``points``: Quadrature grid points, shape ``(npoint, 3)``.
 - ``weights``: Quadrature grid weights, shape ``(npoint, )``.
@@ -47,6 +46,8 @@ contains the following arrays:
 - ``atcoords``: Nuclear coordinates, shape ``(natom, 3)``.
 - ``cellvecs``: (Optional) One, two or three cell vectors (rows) defining periodic boundary
   conditions, shape ``(nvec, 3)``.
+
+All data are assumed to be in atomic units.
 
 With a ``density.npz`` file, one can perform the partitioning as follows:
 
@@ -80,7 +81,7 @@ be subject to change in future code revisions.)
     In this list, the prefix ``c`` denotes cosine-like real spherical harmonics and
     ``s`` denotes the sine-like functions. The first digit refers to the degree ``l`` and
     the second to the order ``m``.
-  - ``propars``: The pro-density parameters, shape ``(sum(atnpar), 1)``.
+  - ``propars``: The pro-density parameters, shape ``(sum(atnpar), )``.
   - ``radial_moments``: Expectation values of ``r**n``, for ``n`` going from 0 to 4,
     shape ``(natom, 5)``.
 
@@ -162,8 +163,7 @@ Install as follows:
 .. code-block:: bash
 
     pip install git+https://github.com/theochem/iodata.git
-    # A bug-fix is for GBasis needed, which is not yet merged.
-    pip install git+https://github.com/tovrstra/gbasis.git@fix-api-iodata-segmented
+    pip install git+https://github.com/tovrstra/gbasis.git
 
 Once these are installed, one can compute densities on a grid from a wavefunction file.
 For example:
@@ -250,5 +250,13 @@ The development environment is configured as follows:
     rob lint-static
     # Activates the development env
     source activate-venv-denspart-dev-python-3.?.sh
-    # Fix missing dependency
+    # Install dependencies
+    # - Mandatory, but not yet included in setup.py
     pip install git+https://github.com/theochem/grid.git
+    # - Optional, for testing and interfaces, not included in setup.py
+    pip install --upgrade git+https://github.com/theochem/iodata.git
+    pip install --upgrade git+https://github.com/theochem/gbasis.git
+    pip install --upgrade git+https://github.com/tovrstra/pytest-regressions@npz
+    pip install --upgrade ase
+    # (Make sure BLAS is installed, so GPAW can link with -lblas)
+    pip install --upgrade gpaw
