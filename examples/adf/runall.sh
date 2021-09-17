@@ -19,7 +19,13 @@
 # --
 
 # Tested with AMS 2021.202
+# You may already have the following in your .bashrc. If not, uncomment.
 # source ${ADFHOME}/amsbashrc.sh
+# Avoid setting ADF and AMS environment variables manually, because these may change
+# with different versions of AMS.
+
+# Let AMS know where the license and the scratch space are. Uncomment and modify
+# to your situation.
 # export SCMLICENSE=your_license.txt
 # export SCM_TMPDIR="$TMPDIR"
 
@@ -33,4 +39,4 @@ rm -r ams.results
 ams -n 1 < adf-water.in > adf-water.out
 amspython -m denspart.adapters.adf ams.results density.npz
 amspython -m denspart density.npz results.npz
-amspython -m denspart.utils.write-extxyz results.npz results.xyz
+amspython -m denspart.utils.write_extxyz results.npz results.xyz

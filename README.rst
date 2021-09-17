@@ -199,6 +199,11 @@ denspart in the AMS Python environment as follows:
 
 .. code-block:: bash
 
+    # If needed:
+    source ${ADFHOME}/amsbashrc.sh
+    # Avoid setting ADF and AMS environment variables manually, because these may change
+    # with different versions of AMS.
+
     amspython -m pip install git+https://github.com/theochem/grid.git
     amspython -m pip install git+https://github.com/theochem/denspart.git
     # For writing the extended XYZ file:
@@ -211,7 +216,7 @@ Then, the conversion and partitioning are done as follows:
 
     amspython -m denspart.adapters.adf ams.results density.npz
     amspython -m denspart density.npz results.npz
-    amspython -m denspart.utils.write-extxyz results.npz results.xyz
+    amspython -m denspart.utils.write_extxyz results.npz results.xyz
 
 where ``ams.results`` is the directory with output files. You need to disable symmetry
 and write out the TAPE10 file. More details can be found the the ``denspart.adapters.adf``
