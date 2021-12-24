@@ -187,6 +187,8 @@ When GPAW is installed, one can run:
     denspart-from-gpaw some-file.gpw density.npz
 
 A minimal working example can be found in ``examples/gpaw``.
+Note that you may have to add `mpirun` in front of the command.
+However, the conversion does not yet support parallel execution and thus only works for the case of a single process, even when using `mpirun`.
 
 
 ADF (AMS 2021.202)
