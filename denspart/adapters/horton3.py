@@ -50,7 +50,7 @@ from gbasis.evals.eval_deriv import evaluate_deriv_basis
 from grid.becke import BeckeWeights
 from grid.molgrid import MolGrid
 from grid.onedgrid import GaussChebyshev
-from grid.rtransform import BeckeTF
+from grid.rtransform import BeckeRTransform
 
 
 __all__ = ["prepare_input"]
@@ -119,7 +119,7 @@ def _setup_grid(atnums, atcoords, nrad, nang, store_atgrids):
     becke._radii[36] = 2.5
     becke._radii[54] = 3.5
     oned = GaussChebyshev(nrad)
-    rgrid = BeckeTF(1e-4, 1.5).transform_1d_grid(oned)
+    rgrid = BeckeRTransform(1e-4, 1.5).transform_1d_grid(oned)
     grid = MolGrid.from_size(atnums, atcoords, rgrid, nang, becke, store=store_atgrids)
     assert np.isfinite(grid.points).all()
     assert np.isfinite(grid.weights).all()
