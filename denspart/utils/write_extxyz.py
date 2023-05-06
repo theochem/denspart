@@ -45,8 +45,8 @@ ATOM_COLUMNS = DEFAULT_ATOM_COLUMNS + [
         "rcubed",
         (),
         float,
-        (lambda word: float(word) * angstrom ** 3),
-        (lambda value: "{:15.10f}".format(value / angstrom ** 3)),
+        (lambda word: float(word) * angstrom**3),
+        (lambda value: "{:15.10f}".format(value / angstrom**3)),
     ),
     (
         "atffparams",

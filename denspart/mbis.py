@@ -88,7 +88,7 @@ def jit_compute(dists, population, exponent):
 
     This function is taken out of the ExponentialFunction class to make it easily jit-able.
     """
-    return population * np.exp(-exponent * dists) * (exponent ** 3 / 8 / np.pi)
+    return population * np.exp(-exponent * dists) * (exponent**3 / 8 / np.pi)
 
 
 def jit_compute_derivatives(dists, population, exponent):
@@ -96,7 +96,7 @@ def jit_compute_derivatives(dists, population, exponent):
 
     This function is taken out of the ExponentialFunction class to make it easily jit-able.
     """
-    factor = np.exp(-exponent * dists) * (exponent ** 2 / 8 / np.pi)
+    factor = np.exp(-exponent * dists) * (exponent**2 / 8 / np.pi)
     return factor * exponent, population * factor * (3 - dists * exponent)
 
 
@@ -139,11 +139,33 @@ class MBISProModel(ProModel):
     """ProModel for MBIS partitioning."""
 
     @classmethod
-    def from_geometry(cls, atnums, atcoords):
-        """Derive a ProModel with a sensible initial guess from a molecular geometry."""
+    def from_geometry(cls, atnums, atcoords, nshell_map=None):
+        """Derive a ProModel with a sensible initial guess from a molecular geometry.
+
+        Parameters
+        ----------
+        atnums
+            An array with atomic numbers, shape ``(natom, )``.
+        atcoords
+            An array with atomic coordinates, shape ``(natom, 3)``
+        nshell_map
+            A dictionary with the number of shells needed for a specific element.
+            When absent or when some elements are not included, all shells
+            in INITIAL_MBIS_PARAMETERS are be used. This argument can be
+            used to reduce that number of shells, outer shells being removed first.
+        """
         fns = []
         for iatom, (atnum, atcoord) in enumerate(zip(atnums, atcoords)):
-            for population, exponent in INITIAL_MBIS_PARAMETERS[atnum]:
+            nshell = nshell_map.get(atnum)
+            shells = INITIAL_MBIS_PARAMETERS[atnum]
+            if nshell is not None:
+                if nshell <= 0 or nshell > len(shells):
+                    raise ValueError(
+                        f"The number of shells for atomic number {atnum} "
+                        f"must be in [1, {len(shells)}]. Got {nshell}."
+                    )
+                shells = shells[:nshell]
+            for population, exponent in shells:
                 fns.append(ExponentialFunction(iatom, atcoord, [population, exponent]))
         return cls(atnums, atcoords, fns)
 

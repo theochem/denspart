@@ -85,5 +85,5 @@ setup(
         "Topic :: Scientific/Engineering :: Chemistry",
         "Intended Audience :: Science/Research",
     ],
-    install_requires=["numpy>=1.0"],  # , "qc-grid"],
+    install_requires=["numpy>=1.0", "scipy"],  # , "qc-grid"],
 )

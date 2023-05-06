@@ -83,7 +83,7 @@ def compute_radial_moments(pro_model, grid, density, localgrids, nmax=4):
         ratio = safe_ratio(density[localgrid.indices], pro[localgrid.indices])
         for degree in np.arange(nmax + 1):
             result[iatom, degree] = localgrid.integrate(
-                pro_atom, ratio, dists ** degree
+                pro_atom, ratio, dists**degree
             )
     return result
 

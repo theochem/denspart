@@ -37,6 +37,7 @@ __all__ = ["main"]
 def main(args=None):
     """Partitioning command-line interface."""
     args = parse_args(args)
+    nshell_map = parse_nshell_arg(args.nshell)
     data = np.load(args.in_npz)
     if "cellvecs" not in data or data["cellvecs"].size == 0:
         grid = Grid(data["points"], data["weights"])
@@ -47,7 +48,9 @@ def main(args=None):
         )
     density = data["density"]
     print("MBIS partitioning --")
-    pro_model_init = MBISProModel.from_geometry(data["atnums"], data["atcoords"])
+    pro_model_init = MBISProModel.from_geometry(
+        data["atnums"], data["atcoords"], nshell_map
+    )
     pro_model, localgrids = optimize_reduce_pro_model(
         pro_model_init,
         grid,
@@ -76,6 +79,19 @@ def main(args=None):
     )
     np.savez_compressed(args.out_npz, **results)
     print("Sum of charges: ", sum(pro_model.charges))
+
+
+def parse_nshell_arg(nshell):
+    """Convert a list of nshell command-line arguments into a more convenient dictionary."""
+    nshell_map = {}
+    for word in nshell:
+        if word.count(":") != 1:
+            raise ValueError(
+                "Each nshell specification should have at least one colon."
+            )
+        atnum, num = word.split(":")
+        nshell_map[int(atnum)] = int(num)
+    return nshell_map
 
 
 def parse_args(args=None):
@@ -107,6 +123,16 @@ def parse_args(args=None):
         help="Density cutoff, used to estimate local grid sizes. "
         "Set to zero for whole-grid integrations (molecules only). "
         "[default=%(default)s]",
+    )
+    parser.add_argument(
+        "--nshell",
+        default=[],
+        nargs="+",
+        help="A whitespace-separate list of atnum:num items, e.g. 12:2 "
+        "mean two shells for magnesium. "
+        "The num part must be a positive integer and cannot exceed the "
+        "default number of shells specified for that element. "
+        "At least one argument must be given.",
     )
     return parser.parse_args(args)
 

@@ -85,7 +85,7 @@ def test_spherical_harmonics(lmax, solid, racah):
         for l in range(1, lmax + 1):
             factor = np.sqrt(4 * np.pi / (2 * l + 1)) if racah else 1
             if solid:
-                factor *= r ** l
+                factor *= r**l
             for m in range(l + 1):
                 if m == 0:
                     assert_allclose(result[i], factor * sph_harm_real(0, l, theta, phi))
@@ -119,12 +119,12 @@ def test_regular_solid_spherical_harmonics():
     assert_allclose(result[1], x)
     assert_allclose(result[2], y)
     # l = 2, m = 0
-    assert_allclose(result[3], (3 * z ** 2 - r ** 2) / 2)
+    assert_allclose(result[3], (3 * z**2 - r**2) / 2)
     # l = 2, m = 1
     assert_allclose(result[4], np.sqrt(3) * z * x)
     assert_allclose(result[5], np.sqrt(3) * z * y)
     # l = 2, m = 2
-    assert_allclose(result[6], np.sqrt(3) / 2 * (x ** 2 - y ** 2))
+    assert_allclose(result[6], np.sqrt(3) / 2 * (x**2 - y**2))
     assert_allclose(result[7], np.sqrt(3) * x * y)
     # l = 3, m = 0
-    assert_allclose(result[8], z * (5 * z ** 2 - 3 * r ** 2) / 2)
+    assert_allclose(result[8], z * (5 * z**2 - 3 * r**2) / 2)

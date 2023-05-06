@@ -120,10 +120,10 @@ def get_uniform_grid_data(calc, cellvecs, atnums):
     if calc.wfs.nspins == 1:
         # Spin-paired case
         data["charge_corrections"] = calc.get_pseudo_density_corrections()
-        data["pseudo_density"] = calc.get_pseudo_density() * (Bohr ** 3)
+        data["pseudo_density"] = calc.get_pseudo_density() * (Bohr**3)
         # Conversion to atomic units is needed. (?)
         data["ae_density"] = calc.get_all_electron_density(gridrefinement=1) * (
-            Bohr ** 3
+            Bohr**3
         )
     else:
         # Spin-polarized case, convert to spin-sum and spin-difference densitities.
@@ -131,17 +131,17 @@ def get_uniform_grid_data(calc, cellvecs, atnums):
         data["charge_corrections"] = corrections[0] + corrections[1]
         data["spincharge_corrections"] = corrections[0] - corrections[1]
 
-        density_pseudo_alpha = calc.get_pseudo_density(0) * (Bohr ** 3)
-        density_pseudo_beta = calc.get_pseudo_density(1) * (Bohr ** 3)
+        density_pseudo_alpha = calc.get_pseudo_density(0) * (Bohr**3)
+        density_pseudo_beta = calc.get_pseudo_density(1) * (Bohr**3)
         data["pseudo_density"] = density_pseudo_alpha + density_pseudo_beta
         data["pseudo_spindensity"] = density_pseudo_alpha - density_pseudo_beta
 
         # Conversion to atomic units is needed. (?)
         density_ae_alpha = calc.get_all_electron_density(spin=0, gridrefinement=1) * (
-            Bohr ** 3
+            Bohr**3
         )
         density_ae_beta = calc.get_all_electron_density(spin=1, gridrefinement=1) * (
-            Bohr ** 3
+            Bohr**3
         )
         data["ae_density"] = density_ae_alpha + density_ae_beta
         data["ae_spindensity"] = density_ae_alpha - density_ae_beta
@@ -464,7 +464,7 @@ def eval_correction(atom_data, setup_data):
         else:
             # Number of spherical harmonics and offset in the polys array.
             nfn = 2 * l + 1
-            offset = l ** 2 - 1
+            offset = l**2 - 1
             for ifn in range(nfn):
                 poly = polys[offset + ifn]
                 basis_fns.append(basis * poly)
