@@ -105,7 +105,7 @@ def parse_args(args=None):
         type=float,
         default=1e-10,
         help="Density cutoff, used to estimate local grid sizes. "
-        "Set to zero for while grid integrations (molecules only). "
+        "Set to zero for whole-grid integrations (molecules only). "
         "[default=%(default)s]",
     )
     return parser.parse_args(args)
