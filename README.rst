@@ -163,7 +163,7 @@ Install as follows:
 .. code-block:: bash
 
     pip install git+https://github.com/theochem/iodata.git
-    pip install git+https://github.com/tovrstra/gbasis.git
+    pip install git+https://github.com/theochem/gbasis.git
 
 Once these are installed, one can compute densities on a grid from a wavefunction file.
 For example:
