@@ -340,7 +340,7 @@ class ProModel(metaclass=ProModelMeta):
             fn.pars[:] = pars[ipar : ipar + fn.npar]
             ipar += fn.npar
 
-    def compute_density(self, grid, localgrids):
+    def compute_density(self, grid, localgrids=None):
         """Compute prodensity on a grid (for the given parameters).
 
         Parameters
@@ -357,8 +357,12 @@ class ProModel(metaclass=ProModelMeta):
 
         """
         pro = np.zeros_like(grid.weights)
-        for fn, localgrid in zip(self.fns, localgrids):
-            np.add.at(pro, localgrid.indices, fn.compute(localgrid.points))
+        if localgrids is None:
+            for fn in self.fns:
+                pro += fn.compute(grid.points)
+        else:
+            for fn, localgrid in zip(self.fns, localgrids):
+                np.add.at(pro, localgrid.indices, fn.compute(localgrid.points))
         return pro
 
     def compute_proatom(self, iatom, points):
