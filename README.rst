@@ -172,7 +172,8 @@ For example:
 
     denspart-from-horton3 some-file.fchk density.npz
 
-A minimal working example showing how to partition a density in a Gaussian FCHK can be found in [``examples/horton3``](examples/horton3).
+A minimal working example showing how to partition a density from a Gaussian FCHK
+can be found in `examples/horton3 <examples/horton3>`_.
 
 
 GPAW
@@ -186,7 +187,7 @@ When GPAW is installed, one can run:
 
     denspart-from-gpaw some-file.gpw density.npz
 
-A minimal working example can be found in [``examples/gpaw``](examples/gpaw).
+A minimal working example can be found in `examples/gpaw <examples/gpaw>`_.
 Note that you may have to add `mpirun` in front of the command.
 However, the conversion does not yet support parallel execution and thus only works for the case of a single process, even when using `mpirun`.
 
@@ -222,7 +223,7 @@ Then, the conversion and partitioning are done as follows:
 
 where ``ams.results`` is the directory with output files. You need to disable symmetry
 and write out the TAPE10 file. More details can be found the the ``denspart.adapters.adf``
-module. A minimal working example can be found in [``examples/adf``](examples/adf).
+module. A minimal working example can be found in `examples/adf <examples/adf>`_.
 
 
 Psi4
@@ -238,7 +239,7 @@ an NPZ file with Psi4's built-in molecular quadrature grids:
     write_density_npz(wfn)
 
 Symmetry is not supported, so you need to set the point group to ``c1`` when specifying
-the geometry. A minimal working example can be found in [``examples/psi4``](examples/psi4).
+the geometry. A minimal working example can be found in `examples/psi4 <examples/psi4>`_.
 
 
 Development setup
