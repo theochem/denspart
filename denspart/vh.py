@@ -26,14 +26,14 @@ from functools import partial
 import time
 
 import numpy as np
-from scipy.optimize import minimize
-
+from scipy.optimize import minimize, SR1
 
 __all__ = ["optimize_reduce_pro_model", "BasisFunction", "ProModel", "ekld"]
 
 
 def optimize_reduce_pro_model(
-    pro_model, grid, density, gtol=1e-8, maxiter=1000, density_cutoff=1e-10
+    pro_model, grid, density, gtol=1e-8, maxiter=1000, density_cutoff=1e-10,
+    cache=None,
 ):
     """Optimize the pro-model and removed redundant basis functions.
 
@@ -44,17 +44,19 @@ def optimize_reduce_pro_model(
     """
     while True:
         pro_model, localgrids = optimize_pro_model(
-            pro_model, grid, density, gtol, maxiter, density_cutoff
+            pro_model, grid, density, gtol, maxiter, density_cutoff, cache
         )
         reduced_pro_model = pro_model.reduce()
         if len(pro_model.fns) == len(reduced_pro_model.fns):
-            return pro_model, localgrids
+            break
         print("Restarting optimization with reduced pro-model.")
         pro_model = reduced_pro_model
+    return pro_model, localgrids
 
 
 def optimize_pro_model(
-    pro_model, grid, density, gtol=1e-8, maxiter=1000, density_cutoff=1e-10
+    pro_model, grid, density, gtol=1e-8, maxiter=1000, density_cutoff=1e-10,
+    cache=None,
 ):
     """Optimize the promodel using the trust-constr minimizer from SciPy.
 
@@ -74,6 +76,8 @@ def optimize_pro_model(
     density_cutoff
         Density cutoff used to estimated sizes of local grids. Set to zero for
         whole-grid integrations. (This will not work for periodic systems.)
+    cache
+        An optional ComputeCache instance for reusing intermediate results.
 
     Returns
     -------
@@ -109,6 +113,7 @@ def optimize_pro_model(
         pro_model=pro_model,
         localgrids=localgrids,
         pop=pop,
+        cache=cache,
     )
     pro_model.ekld_info = None
 
@@ -140,7 +145,7 @@ def optimize_pro_model(
             pars0,
             method="trust-constr",
             jac=True,
-            hess="2-point",
+            hess=SR1(),
             bounds=bounds,
             callback=callback,
             options={"gtol": gtol, "maxiter": maxiter},
@@ -340,7 +345,7 @@ class ProModel(metaclass=ProModelMeta):
             fn.pars[:] = pars[ipar : ipar + fn.npar]
             ipar += fn.npar
 
-    def compute_density(self, grid, localgrids=None):
+    def compute_density(self, grid, localgrids=None, cache=None):
         """Compute prodensity on a grid (for the given parameters).
 
         Parameters
@@ -349,6 +354,8 @@ class ProModel(metaclass=ProModelMeta):
             The whole integration grid, on which the results is computed.
         localgrids
             A list of local grids, one for each basis function.
+        cache
+            An optional ComputeCache instance for reusing intermediate results.
 
         Returns
         -------
@@ -359,13 +366,13 @@ class ProModel(metaclass=ProModelMeta):
         pro = np.zeros_like(grid.weights)
         if localgrids is None:
             for fn in self.fns:
-                pro += fn.compute(grid.points)
+                pro += fn.compute(grid.points, cache)
         else:
             for fn, localgrid in zip(self.fns, localgrids):
-                np.add.at(pro, localgrid.indices, fn.compute(localgrid.points))
+                np.add.at(pro, localgrid.indices, fn.compute(localgrid.points, cache))
         return pro
 
-    def compute_proatom(self, iatom, points):
+    def compute_proatom(self, iatom, points, cache=None):
         """Compute proatom density on a set of points.
 
         Parameters
@@ -374,6 +381,8 @@ class ProModel(metaclass=ProModelMeta):
             The atomic index.
         points
             A set of points on which the proatom must be computed.
+        cache
+            An optional ComputeCache instance for reusing intermediate results.
 
         Returns
         -------
@@ -384,7 +393,7 @@ class ProModel(metaclass=ProModelMeta):
         pro = 0
         for fn in self.fns:
             if fn.iatom == iatom:
-                pro += fn.compute(points)
+                pro += fn.compute(points, cache)
         return pro
 
     def pprint(self):
@@ -401,7 +410,7 @@ class ProModel(metaclass=ProModelMeta):
             )
 
 
-def ekld(pars, grid, density, pro_model, localgrids, pop, density_cutoff=1e-15):
+def ekld(pars, grid, density, pro_model, localgrids, pop, cache=None, density_cutoff=1e-15):
     """Compute the Extended KL divergence and its gradient.
 
     Parameters
@@ -418,6 +427,8 @@ def ekld(pars, grid, density, pro_model, localgrids, pop, density_cutoff=1e-15):
         A list of local integration grids for the pro-model basis functions.
     pop
         The integral of density, to be precomputed before calling this function.
+    cache
+        An optional ComputeCache instance for reusing intermediate results.
     density_cutoff
         Density cutoff used to neglect grid points with low densities. Including
         them can result in numerical noise in the result and its derivatives.
@@ -433,7 +444,7 @@ def ekld(pars, grid, density, pro_model, localgrids, pop, density_cutoff=1e-15):
     time_start = time.process_time()
 
     pro_model.assign_pars(pars)
-    pro = pro_model.compute_density(grid, localgrids)
+    pro = pro_model.compute_density(grid, localgrids, cache)
 
     # Compute potentially tricky quantities.
     sick = (density < density_cutoff) | (pro < density_cutoff)
@@ -453,7 +464,7 @@ def ekld(pars, grid, density, pro_model, localgrids, pop, density_cutoff=1e-15):
 
     for ifn, fn in enumerate(pro_model.fns):
         localgrid = localgrids[ifn]
-        fn_derivatives = fn.compute_derivatives(localgrid.points)
+        fn_derivatives = fn.compute_derivatives(localgrid.points, cache)
         gradient[ipar : ipar + fn.npar] = fn.population_derivatives - np.einsum(
             "i,i,ji", localgrid.weights, ratio[localgrid.indices], fn_derivatives
         )
@@ -468,4 +479,6 @@ def ekld(pars, grid, density, pro_model, localgrids, pop, density_cutoff=1e-15):
         "gradient": gradient,
         "time": time_stop - time_start,
     }
+    if cache is not None:
+        cache.discard("end-ekld")
     return result, gradient

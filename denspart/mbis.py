@@ -24,15 +24,10 @@ from itertools import combinations
 
 import numpy as np
 
-try:
-    from numba import jit
-except ImportError:
-    jit = None
+from .vh import BasisFunction, ProModel
+from .cache import compute_cached
 
-from .vh import (
-    BasisFunction,
-    ProModel,
-)
+
 
 
 __all__ = ["MBISProModel"]
@@ -68,41 +63,40 @@ class ExponentialFunction(BasisFunction):
         population, exponent = self.pars
         return (np.log(population) - np.log(density_cutoff)) / exponent
 
-    def _compute_dists(self, points):
-        # TODO: add nicer caching mechanism to avoid recomputation of distances.
-        return np.linalg.norm(points - self.center, axis=1)
+    def _compute_dists(self, points, cache=None):
+        return compute_cached(
+            cache,
+            until="forever",
+            key=("dists", *self.center, len(points)),
+            func=(lambda : np.linalg.norm(points - self.center, axis=1)),
+        )
+    
+    def _compute_exp(self, exponent, dists, cache=None):
+        return compute_cached(
+            cache,
+            until="end-ekld",
+            key=("exp", *self.center, len(dists)),
+            func=(lambda: np.exp(-exponent * dists))
+        )
 
-    def compute(self, points):
+    def compute(self, points, cache=None):
         population, exponent = self.pars
-        dists = self._compute_dists(points)
-        return jit_compute(dists, population, exponent)
+        if exponent < 0 or population < 0:
+            return np.full(len(points), np.inf)
+        dists = self._compute_dists(points, cache)
+        exp = self._compute_exp(exponent, dists, cache)
+        prefactor = population * (exponent ** 3 / 8 / np.pi)
+        return prefactor * exp
 
-    def compute_derivatives(self, points):
+    def compute_derivatives(self, points, cache=None):
         population, exponent = self.pars
-        dists = self._compute_dists(points)
-        return np.array(jit_compute_derivatives(dists, population, exponent))
-
-
-def jit_compute(dists, population, exponent):
-    """Compute the exponential basis function.
-
-    This function is taken out of the ExponentialFunction class to make it easily jit-able.
-    """
-    return population * np.exp(-exponent * dists) * (exponent**3 / 8 / np.pi)
-
-
-def jit_compute_derivatives(dists, population, exponent):
-    """Compute the derivatives of the exponential basis function.
-
-    This function is taken out of the ExponentialFunction class to make it easily jit-able.
-    """
-    factor = np.exp(-exponent * dists) * (exponent**2 / 8 / np.pi)
-    return factor * exponent, population * factor * (3 - dists * exponent)
-
-
-if jit is not None:
-    jit_compute = jit(fastmath=True, nopython=True)(jit_compute)
-    jit_compute_derivatives = jit(fastmath=True, nopython=True)(jit_compute_derivatives)
+        if exponent < 0 or population < 0:
+            return np.full((2, len(points)), np.inf)
+        dists = self._compute_dists(points, cache)
+        exp = self._compute_exp(exponent, dists, cache)
+        factor = exponent ** 3 / 8 / np.pi
+        vector = (population * exponent ** 2 / 8 / np.pi) * (3 - dists * exponent)
+        return np.array([factor * exp, vector * exp])
 
 
 def connected_vertices(pairs, vertices):

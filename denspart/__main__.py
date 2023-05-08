@@ -26,9 +26,11 @@ import numpy as np
 from grid.basegrid import Grid
 from grid.periodicgrid import PeriodicGrid
 
-from denspart.mbis import MBISProModel
-from denspart.vh import optimize_reduce_pro_model
-from denspart.properties import compute_radial_moments, compute_multipole_moments
+from .cache import ComputeCache
+from .mbis import MBISProModel
+from .vh import optimize_reduce_pro_model
+from .properties import compute_radial_moments, compute_multipole_moments
+
 
 
 __all__ = ["main"]
@@ -51,6 +53,7 @@ def main(args=None):
     pro_model_init = MBISProModel.from_geometry(
         data["atnums"], data["atcoords"], nshell_map
     )
+    cache = ComputeCache() if args.do_cache else None
     pro_model, localgrids = optimize_reduce_pro_model(
         pro_model_init,
         grid,
@@ -58,6 +61,7 @@ def main(args=None):
         args.gtol,
         args.maxiter,
         args.density_cutoff,
+        cache,
     )
     print("Promodel")
     pro_model.pprint()
@@ -67,10 +71,10 @@ def main(args=None):
         {
             "charges": pro_model.charges,
             "radial_moments": compute_radial_moments(
-                pro_model, grid, density, localgrids
+                pro_model, grid, density, localgrids, cache
             ),
             "multipole_moments": compute_multipole_moments(
-                pro_model, grid, density, localgrids
+                pro_model, grid, density, localgrids, cache
             ),
             "gtol": args.gtol,
             "maxiter": args.maxiter,
@@ -133,6 +137,15 @@ def parse_args(args=None):
         "The num part must be a positive integer and cannot exceed the "
         "default number of shells specified for that element. "
         "At least one argument must be given.",
+    )
+    parser.add_argument(
+        "--nocache",
+        dest="do_cache",
+        default=True,
+        action="store_false",
+        help="Disable caching. The cache increases memory consumption, "
+        "it speeds up the calculation by about a factor of 2, "
+        "and it could introduce more bugs."
     )
     return parser.parse_args(args)
 

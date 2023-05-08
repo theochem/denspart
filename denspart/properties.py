@@ -21,6 +21,8 @@
 
 import numpy as np
 
+from .cache import compute_cached
+
 
 __all__ = ["compute_radial_moments", "compute_multipole_moments", "spherical_harmonics"]
 
@@ -51,7 +53,7 @@ def safe_ratio(density, pro, density_cutoff=1e-15):
     return ratio
 
 
-def compute_radial_moments(pro_model, grid, density, localgrids, nmax=4):
+def compute_radial_moments(pro_model, grid, density, localgrids, cache=None, nmax=4):
     """Compute expectation values of r^n for each atom.
 
     Parameters
@@ -64,6 +66,8 @@ def compute_radial_moments(pro_model, grid, density, localgrids, nmax=4):
         The electron density.
     localgrids
         A list of local grids, one for each basis function.
+    cache
+        An optional ComputeCache instance for reusing intermediate results.
     nmax
         Maximum degree of the radial moment to be computed.
 
@@ -78,8 +82,13 @@ def compute_radial_moments(pro_model, grid, density, localgrids, nmax=4):
     for iatom, atcoord in enumerate(pro_model.atcoords):
         # TODO: improve cutoff
         localgrid = grid.get_localgrid(atcoord, 8.0)
-        dists = np.linalg.norm(localgrid.points - atcoord, axis=1)
-        pro_atom = pro_model.compute_proatom(iatom, localgrid.points)
+        dists = compute_cached(
+            cache,
+            until="forever",
+            key=("dists", *atcoord, len(localgrid.points)),
+            func=(lambda : np.linalg.norm(localgrid.points - atcoord, axis=1)),
+        )
+        pro_atom = pro_model.compute_proatom(iatom, localgrid.points, cache)
         ratio = safe_ratio(density[localgrid.indices], pro[localgrid.indices])
         for degree in np.arange(nmax + 1):
             result[iatom, degree] = localgrid.integrate(
@@ -88,7 +97,7 @@ def compute_radial_moments(pro_model, grid, density, localgrids, nmax=4):
     return result
 
 
-def compute_multipole_moments(pro_model, grid, density, localgrids, lmax=4):
+def compute_multipole_moments(pro_model, grid, density, localgrids, cache=None, lmax=4):
     """Compute expectation values of r^n for each atom.
 
     Parameters
@@ -101,6 +110,8 @@ def compute_multipole_moments(pro_model, grid, density, localgrids, lmax=4):
         The electron density.
     localgrids
         A list of local grids, one for each basis function.
+    cache
+        An optional ComputeCache instance for reusing intermediate results.
     lmax
         Maximum angular momentum to be computed.
 
@@ -119,7 +130,7 @@ def compute_multipole_moments(pro_model, grid, density, localgrids, lmax=4):
         operators = np.zeros(((lmax + 1) ** 2 - 1, localgrid.size))
         operators[:3] = (localgrid.points - atcoord)[:, [2, 0, 1]].T
         spherical_harmonics(operators, lmax, solid=True)
-        pro_atom = pro_model.compute_proatom(iatom, localgrid.points)
+        pro_atom = pro_model.compute_proatom(iatom, localgrid.points, cache)
         ratio = safe_ratio(density[localgrid.indices], pro[localgrid.indices])
         for iop, operator in enumerate(operators):
             result[iatom, iop] = localgrid.integrate(pro_atom, ratio, operator)
