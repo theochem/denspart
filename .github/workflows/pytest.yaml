@@ -25,7 +25,9 @@ jobs:
           python-version: ${{ matrix.py }}
       - name: Install dependencies for testing
         run: |
+          pip install --upgrade pip
           pip install pytest pytest-md pytest-emoji
+          pip install git+https://github.com/theochem/grid.git
           pip install git+https://github.com/theochem/iodata.git
           pip install git+https://github.com/theochem/gbasis.git
           pip install git+https://github.com/tovrstra/pytest-regressions@npz
