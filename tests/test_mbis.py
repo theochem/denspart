@@ -22,6 +22,7 @@
 from pathlib import Path
 
 import numpy as np
+import pytest
 from denspart.mbis import ExponentialFunction, MBISProModel, connected_vertices
 from denspart.vh import ProModel, optimize_reduce_pro_model
 from grid.basegrid import Grid
@@ -51,6 +52,7 @@ def test_connected_vertices_random():
             assert sum(vertex in cluster for cluster in clusters) == 1
 
 
+@pytest.mark.filterwarnings("ignore:delta_grad:UserWarning")
 def test_example():
     data = np.load(Path("tests", "density-water.npz"))
     grid = Grid(data["points"], data["weights"])

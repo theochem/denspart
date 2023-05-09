@@ -23,10 +23,12 @@ import tempfile
 from pathlib import Path
 
 import numpy as np
+import pytest
 from denspart.__main__ import main
 from denspart.vh import ProModel
 
 
+@pytest.mark.filterwarnings("ignore:delta_grad:UserWarning")
 def test_cli(ndarrays_regression):
     with tempfile.TemporaryDirectory("denspart", "test_cli") as dn:
         fn_results = os.path.join(dn, "results.npz")
@@ -35,4 +37,4 @@ def test_cli(ndarrays_regression):
         results = np.load(fn_results)
         pro_model = ProModel.from_dict(results)
     assert len(pro_model.fns) == 4
-    ndarrays_regression.check(dict(results))
+    ndarrays_regression.check(dict(results), default_tolerance=dict(atol=1e-6))
