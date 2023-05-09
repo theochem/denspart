@@ -63,9 +63,11 @@ def main(args=None):
     results.update(
         {
             "charges": pro_model.charges,
-            "radial_moments": compute_radial_moments(pro_model, grid, density, localgrids, cache),
+            "radial_moments": compute_radial_moments(
+                pro_model, grid, density, localgrids, args.density_cutoff, cache
+            ),
             "multipole_moments": compute_multipole_moments(
-                pro_model, grid, density, localgrids, cache
+                pro_model, grid, density, localgrids, args.density_cutoff, cache
             ),
             "gtol": args.gtol,
             "maxiter": args.maxiter,

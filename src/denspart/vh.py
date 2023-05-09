@@ -399,6 +399,13 @@ class ProModel(metaclass=ProModelMeta):
                 pro += fn.compute(points, cache)
         return pro
 
+    def get_cutoff_radii(self, density_cutoff):
+        """Estimate the cutoff radii for all atoms."""
+        radii = np.zeros(self.natom, dtype=float)
+        for fn in self.fns:
+            radii[fn.iatom] = max(radii[fn.iatom], fn.get_cutoff_radius(density_cutoff))
+        return radii
+
     def pprint(self):
         """Print a table with the pro-parameters."""
         print(" ifn iatom  atn       parameters...")

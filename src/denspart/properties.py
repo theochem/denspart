@@ -62,7 +62,9 @@ def _compute_dists(points, center, cache=None):
     )
 
 
-def compute_radial_moments(pro_model, grid, density, localgrids, cache=None, nmax=4):
+def compute_radial_moments(
+    pro_model, grid, density, localgrids, density_cutoff=1e-10, cache=None, nmax=4
+):
     """Compute expectation values of r^n for each atom.
 
     Parameters
@@ -75,6 +77,9 @@ def compute_radial_moments(pro_model, grid, density, localgrids, cache=None, nma
         The electron density.
     localgrids
         A list of local grids, one for each basis function.
+    density_cutoff
+        Density cutoff used to estimated sizes of local grids. Set to zero for
+        whole-grid integrations. (This will not work for periodic systems.)
     cache
         An optional ComputeCache instance for reusing intermediate results.
     nmax
@@ -88,9 +93,9 @@ def compute_radial_moments(pro_model, grid, density, localgrids, cache=None, nma
     """
     pro = pro_model.compute_density(grid, localgrids)
     result = np.zeros((pro_model.natom, nmax + 1))
-    for iatom, atcoord in enumerate(pro_model.atcoords):
-        # TODO: improve cutoff
-        localgrid = grid.get_localgrid(atcoord, 8.0)
+    radii = pro_model.get_cutoff_radii(density_cutoff)
+    for iatom, (atcoord, radius) in enumerate(zip(pro_model.atcoords, radii, strict=True)):
+        localgrid = grid.get_localgrid(atcoord, radius)
         pro_atom = pro_model.compute_proatom(iatom, localgrid.points, cache)
         ratio = safe_ratio(density[localgrid.indices], pro[localgrid.indices])
         dists = _compute_dists(localgrid.points, atcoord, cache)
@@ -99,7 +104,9 @@ def compute_radial_moments(pro_model, grid, density, localgrids, cache=None, nma
     return result
 
 
-def compute_multipole_moments(pro_model, grid, density, localgrids, cache=None, ellmax=4):
+def compute_multipole_moments(
+    pro_model, grid, density, localgrids, density_cutoff=1e-10, cache=None, ellmax=4
+):
     """Compute expectation values of r^n for each atom.
 
     Parameters
@@ -112,6 +119,9 @@ def compute_multipole_moments(pro_model, grid, density, localgrids, cache=None, 
         The electron density.
     localgrids
         A list of local grids, one for each basis function.
+    density_cutoff
+        Density cutoff used to estimated sizes of local grids. Set to zero for
+        whole-grid integrations. (This will not work for periodic systems.)
     cache
         An optional ComputeCache instance for reusing intermediate results.
     ellmax
@@ -126,9 +136,9 @@ def compute_multipole_moments(pro_model, grid, density, localgrids, cache=None, 
     """
     pro = pro_model.compute_density(grid, localgrids)
     result = np.zeros((pro_model.natom, (ellmax + 1) ** 2 - 1))
-    for iatom, atcoord in enumerate(pro_model.atcoords):
-        # TODO: improve cutoff
-        localgrid = grid.get_localgrid(atcoord, 8.0)
+    radii = pro_model.get_cutoff_radii(density_cutoff)
+    for iatom, (atcoord, radius) in enumerate(zip(pro_model.atcoords, radii, strict=True)):
+        localgrid = grid.get_localgrid(atcoord, radius)
         operators = np.zeros(((ellmax + 1) ** 2 - 1, localgrid.size))
         operators[:3] = (localgrid.points - atcoord)[:, [2, 0, 1]].T
         spherical_harmonics(operators, ellmax, solid=True)
