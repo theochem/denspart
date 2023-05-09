@@ -72,7 +72,7 @@ class ExponentialFunction(BasisFunction):
         return compute_cached(
             cache,
             until="end-ekld",
-            key=("exp", *self.center, len(dists)),
+            key=("exp", *self.center, exponent, len(dists)),
             func=(lambda: np.exp(-exponent * dists)),
         )
 

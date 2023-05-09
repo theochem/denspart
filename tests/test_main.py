@@ -28,10 +28,11 @@ from denspart.vh import ProModel
 
 @pytest.mark.filterwarnings("ignore:delta_grad:UserWarning")
 def test_cli(ndarrays_regression, tmp_path):
-    fn_results = tmp_path / "results.npz"
-    main([str(Path("tests", "density-water.npz")), str(fn_results), "--nocache"])
-    assert fn_results.is_file()
-    results = np.load(fn_results)
-    pro_model = ProModel.from_dict(results)
-    assert len(pro_model.fns) == 4
-    ndarrays_regression.check(dict(results), default_tolerance=dict(atol=1e-6))
+    for extra_args in ["--nocache"], []:
+        fn_results = tmp_path / "results.npz"
+        main([str(Path("tests", "density-water.npz")), str(fn_results), *extra_args])
+        assert fn_results.is_file()
+        results = np.load(fn_results)
+        pro_model = ProModel.from_dict(results)
+        assert len(pro_model.fns) == 4
+        ndarrays_regression.check(dict(results), default_tolerance=dict(atol=1e-6))
