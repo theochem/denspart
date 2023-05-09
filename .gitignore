@@ -118,10 +118,6 @@ ENV/
 # Ignore mac .DS_Store
 .DS_Store
 
-# Direnv
-env
-.envrc
-
 # Pytest
 .pytest_cache
 

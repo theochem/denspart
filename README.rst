@@ -271,6 +271,8 @@ It is assumed that you have `direnv <https://direnv.net/>`_ installed.
     pip install --upgrade ase
     # (Make sure BLAS and LibXC are installed, so GPAW can link to them.)
     pip install --upgrade gpaw
+    # Install GPAW pseudopotentials
+    gpaw install-data env/share
 
 To run all tests locally:
 
