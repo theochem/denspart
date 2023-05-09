@@ -19,14 +19,13 @@
 """Unit tests for the module denspart.mbis."""
 
 
-from importlib import resources
+from pathlib import Path
 
 import numpy as np
-from numpy.testing import assert_allclose
+from denspart.mbis import ExponentialFunction, MBISProModel, connected_vertices
+from denspart.vh import ProModel, optimize_reduce_pro_model
 from grid.basegrid import Grid
-
-from ..vh import ProModel, optimize_reduce_pro_model
-from ..mbis import connected_vertices, MBISProModel, ExponentialFunction
+from numpy.testing import assert_allclose
 
 
 def test_connected_vertices_simple():
@@ -53,8 +52,7 @@ def test_connected_vertices_random():
 
 
 def test_example():
-    with resources.path("denspart.test", "density-water.npz") as fn_npz:
-        data = np.load(fn_npz)
+    data = np.load(Path("tests", "density-water.npz"))
     grid = Grid(data["points"], data["weights"])
     pro_model0 = MBISProModel.from_geometry(data["atnums"], data["atcoords"])
     pro_model1 = optimize_reduce_pro_model(pro_model0, grid, data["density"])[0]
@@ -85,9 +83,7 @@ def test_reduce_exp():
     atnums = np.array([1, 1])
     atcoords = np.array([[0.0, 0.0, 0.0], [0.0, 0.0, 1.0]])
     pro_model0 = MBISProModel.from_geometry(atnums, atcoords)
-    pro_model0.fns.append(
-        ExponentialFunction(1, atcoords[1], pro_model0.fns[-1].pars.copy())
-    )
+    pro_model0.fns.append(ExponentialFunction(1, atcoords[1], pro_model0.fns[-1].pars.copy()))
     pro_model0.fns[-1].pars[1] *= 1.000001
     pro_model1 = pro_model0.reduce()
     assert len(pro_model1.fns) == 2

@@ -20,7 +20,6 @@
 
 
 import numpy as np
-
 import psi4
 
 
@@ -51,9 +50,7 @@ def write_density_npz(wfn, fn_npz="density.npz"):
     if vpot is None:
         # We only need the density, so faking in LDA calculation.
         functional, _ = psi4.procrouting.dft.build_superfunctional("SVWN", restricted)
-        vpot = psi4.core.VBase.build(
-            wfn.basisset(), functional, "RV" if restricted else "UV"
-        )
+        vpot = psi4.core.VBase.build(wfn.basisset(), functional, "RV" if restricted else "UV")
         if restricted:
             vpot.set_D([wfn.Da()])
         else:

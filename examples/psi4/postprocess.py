@@ -20,6 +20,7 @@
 """Denspart post-processing example."""
 
 import json
+
 import numpy as np
 
 results = np.load("results.npz")

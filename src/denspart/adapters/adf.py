@@ -58,8 +58,7 @@ import os
 import tempfile
 
 import numpy as np
-
-from scm.plams import init, finish, AMSJob, KFReader
+from scm.plams import AMSJob, KFReader, finish, init
 
 
 def main():
@@ -106,18 +105,18 @@ def extract_adf(dn_ams_results):
         # Use the AMSJob interface to check if the input was correct.
         job = AMSJob.load_external(dn_ams_results)
         job.check()
-        if not "adf" in job.settings["input"]:
-            raise IOError("Only ADF Jobs are supported at the moment.")
+        if "adf" not in job.settings["input"]:
+            raise OSError("Only ADF Jobs are supported at the moment.")
         if (
             "symmetry" not in job.settings["input"]["adf"]
             or job.settings["input"]["adf"]["symmetry"].lower() != "nosym"
         ):
-            raise IOError("Symmetry must be set to NOSYM in the ADF job.")
+            raise OSError("Symmetry must be set to NOSYM in the ADF job.")
         if (
             "save" not in job.settings["input"]["adf"]
             or "tape10" not in job.settings["input"]["adf"]["save"][0].lower()
         ):
-            raise IOError("Tape 10 file must be saved.")
+            raise OSError("Tape 10 file must be saved.")
 
         # Read all other stuff directly from RKF files because PLAMS does not support
         # TAPE files and has the poor habit of converting away from atomic units. :(

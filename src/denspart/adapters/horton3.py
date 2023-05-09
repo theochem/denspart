@@ -40,18 +40,14 @@ This module is far from polished and is currently only used for prototyping:
 import argparse
 
 import numpy as np
-
-from iodata import load_one
-
-from gbasis.wrappers import from_iodata
 from gbasis.evals.eval import evaluate_basis
 from gbasis.evals.eval_deriv import evaluate_deriv_basis
-
+from gbasis.wrappers import from_iodata
 from grid.becke import BeckeWeights
 from grid.molgrid import MolGrid
 from grid.onedgrid import GaussChebyshev
 from grid.rtransform import BeckeRTransform
-
+from iodata import load_one
 
 __all__ = ["prepare_input"]
 
@@ -154,8 +150,7 @@ def _compute_stuff(iodata, points, gradient, orbitals, chunk_size):
     if one_rdm is None:
         if iodata.mo is None:
             raise ValueError(
-                "The input file lacks wavefunction data with which "
-                "the density can be computed."
+                "The input file lacks wavefunction data with which " "the density can be computed."
             )
         coeffs, occs = iodata.mo.coeffs, iodata.mo.occs
         one_rdm = np.dot(coeffs * occs, coeffs.T)
@@ -181,7 +176,7 @@ def _compute_stuff(iodata, points, gradient, orbitals, chunk_size):
     istart = 0
     while istart < len(points):
         iend = min(istart + chunk_size, len(points))
-        print("Computing stuff: {} ... {} / {}".format(istart, iend, len(points)))
+        print(f"Computing stuff: {istart} ... {iend} / {len(points)}")
         # Basis functions are computed upfront for efficiency.
         print("  basis")
         basis_grid = evaluate_basis(basis, points[istart:iend], coord_type=coord_types)
@@ -189,9 +184,7 @@ def _compute_stuff(iodata, points, gradient, orbitals, chunk_size):
             print("  basis_gradient")
             basis_gradient_grid = np.array(
                 [
-                    evaluate_deriv_basis(
-                        basis, points[istart:iend], orders, coord_type=coord_types
-                    )
+                    evaluate_deriv_basis(basis, points[istart:iend], orders, coord_type=coord_types)
                     for orders in np.identity(3, dtype=int)
                 ]
             )
@@ -207,9 +200,7 @@ def _compute_stuff(iodata, points, gradient, orbitals, chunk_size):
             )
         if orbitals:
             print("  orbitals")
-            result["orbitals"][istart:iend] = np.einsum(
-                "bo,bp->po", iodata.mo.coeffs, basis_grid
-            )
+            result["orbitals"][istart:iend] = np.einsum("bo,bp->po", iodata.mo.coeffs, basis_grid)
             if gradient:
                 print("  orbitals gradient")
                 result["orbitals_gradient"][istart:iend] = np.einsum(
@@ -262,12 +253,8 @@ def main(args=None):
 
 def parse_args(args=None):
     """Parse command-line arguments."""
-    description = (
-        "Setup a default integration grid and compute the density with HORTON3."
-    )
-    parser = argparse.ArgumentParser(
-        prog="denspart-from-horton3", description=description
-    )
+    description = "Setup a default integration grid and compute the density with HORTON3."
+    parser = argparse.ArgumentParser(prog="denspart-from-horton3", description=description)
     parser.add_argument("fn_wfn", help="The wavefunction file.")
     parser.add_argument(
         "fn_density",
@@ -292,8 +279,7 @@ def parse_args(args=None):
         "--chunk-size",
         type=int,
         default=10000,
-        help="Number points on which the density is computed in one pass. "
-        "[default=%(default)s]",
+        help="Number points on which the density is computed in one pass. " "[default=%(default)s]",
     )
     parser.add_argument(
         "-s",

@@ -22,17 +22,22 @@ This code is very preliminary, so no serious docstrings yet.
 """
 
 
-from functools import partial
 import time
+from functools import partial
 
 import numpy as np
-from scipy.optimize import minimize, SR1
+from scipy.optimize import SR1, minimize
 
 __all__ = ["optimize_reduce_pro_model", "BasisFunction", "ProModel", "ekld"]
 
 
 def optimize_reduce_pro_model(
-    pro_model, grid, density, gtol=1e-8, maxiter=1000, density_cutoff=1e-10,
+    pro_model,
+    grid,
+    density,
+    gtol=1e-8,
+    maxiter=1000,
+    density_cutoff=1e-10,
     cache=None,
 ):
     """Optimize the pro-model and removed redundant basis functions.
@@ -55,7 +60,12 @@ def optimize_reduce_pro_model(
 
 
 def optimize_pro_model(
-    pro_model, grid, density, gtol=1e-8, maxiter=1000, density_cutoff=1e-10,
+    pro_model,
+    grid,
+    density,
+    gtol=1e-8,
+    maxiter=1000,
+    density_cutoff=1e-10,
     cache=None,
 ):
     """Optimize the promodel using the trust-constr minimizer from SciPy.
@@ -91,20 +101,15 @@ def optimize_pro_model(
     # Precompute the local grids.
     print("Building local grids")
     localgrids = [
-        grid.get_localgrid(fn.center, fn.get_cutoff_radius(density_cutoff))
-        for fn in pro_model.fns
+        grid.get_localgrid(fn.center, fn.get_cutoff_radius(density_cutoff)) for fn in pro_model.fns
     ]
     # Compute the total population
     pop = np.einsum("i,i", grid.weights, density)
     print("Integral of density:", pop)
     # Define initial guess and cost
     print("Optimization")
-    print(
-        "#Iter  #Call         ekld          kld  -constraint     grad.rms  cputime (s)"
-    )
-    print(
-        "-----  -----  -----------  -----------  -----------  -----------  -----------"
-    )
+    print("#Iter  #Call         ekld          kld  -constraint     grad.rms  cputime (s)")
+    print("-----  -----  -----------  -----------  -----------  -----------  -----------")
     pars0 = np.concatenate([fn.pars for fn in pro_model.fns])
     cost_grad = partial(
         ekld,
@@ -153,12 +158,12 @@ def optimize_pro_model(
 
     print("-----  -----------  -----------  -----------  -----------  -----------")
     # Check for convergence.
-    print('Optimizer message: "{}"'.format(optresult.message))
+    print(f'Optimizer message: "{optresult.message}"')
     if not optresult.success:
         raise RuntimeError("Convergence failure.")
     # Wrap up
-    print("Total charge:       {:20.7e}".format(pro_model.atnums.sum() - pop))
-    print("Sum atomic charges: {:20.7e}".format(pro_model.charges.sum()))
+    print(f"Total charge:       {pro_model.atnums.sum() - pop:20.7e}")
+    print(f"Sum atomic charges: {pro_model.charges.sum():20.7e}")
     pro_model.assign_pars(optresult.x)
     return pro_model, localgrids
 
@@ -190,26 +195,24 @@ class BasisFunction:
 
         """
         if len(pars) != len(bounds):
-            raise ValueError(
-                "The number of parameters must equal the number of bounds."
-            )
+            raise ValueError("The number of parameters must equal the number of bounds.")
         self.iatom = iatom
         self.center = center
         self.pars = pars
         self.bounds = bounds
 
     @property
-    def npar(self):  # noqa: D401
+    def npar(self):
         """Number of parameters."""
         return len(self.pars)
 
     @property
-    def population(self):  # noqa: D401
+    def population(self):
         """Population of this basis function."""
         raise NotImplementedError
 
     @property
-    def population_derivatives(self):  # noqa: D401
+    def population_derivatives(self):
         """Derivatives of the population w.r.t. proparameters."""
         raise NotImplementedError
 
@@ -266,12 +269,12 @@ class ProModel(metaclass=ProModelMeta):
         self.fns = fns
 
     @property
-    def natom(self):  # noqa: D401
+    def natom(self):
         """Number of atoms."""
         return len(self.atnums)
 
     @property
-    def charges(self):  # noqa: D401
+    def charges(self):
         """Proatomic charges."""
         charges = np.array(self.atnums, dtype=float)
         for fn in self.fns:
@@ -333,7 +336,7 @@ class ProModel(metaclass=ProModelMeta):
             raise TypeError("Cannot instantiate ProModel base class.")
         return subcls.from_dict(data)
 
-    @property  # noqa: D401
+    @property
     def population(self):
         """Promolecular population."""
         return sum(fn.population for fn in self.fns)

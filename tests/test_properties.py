@@ -19,12 +19,11 @@
 """Unit tests for properties module."""
 
 
-import pytest
 import numpy as np
+import pytest
+from denspart.properties import spherical_harmonics
 from numpy.testing import assert_allclose
 from scipy.special import sph_harm
-
-from ..properties import spherical_harmonics
 
 
 def sph_harm_real(m, n, theta, phi):
@@ -58,10 +57,10 @@ def sph_harm_real(m, n, theta, phi):
         return tmp.real, tmp.imag
 
 
-@pytest.mark.parametrize("lmax", [1, 2, 3, 4, 5])
+@pytest.mark.parametrize("ellmax", [1, 2, 3, 4, 5])
 @pytest.mark.parametrize("solid", [True, False])
 @pytest.mark.parametrize("racah", [True, False])
-def test_spherical_harmonics(lmax, solid, racah):
+def test_spherical_harmonics(ellmax, solid, racah):
     npt = 20
     points = np.random.normal(0, 1, (npt, 3))
     r = np.linalg.norm(points, axis=1)
@@ -70,28 +69,28 @@ def test_spherical_harmonics(lmax, solid, racah):
     theta = np.arctan2(y, x)
 
     # Prepare results array
-    result = np.zeros(((lmax + 1) ** 2 - 1, npt), float)
+    result = np.zeros(((ellmax + 1) ** 2 - 1, npt), float)
     result[0] = z
     result[1] = x
     result[2] = y
 
     if solid and not racah:
         with pytest.raises(ValueError):
-            spherical_harmonics(result, lmax, solid, racah)
+            spherical_harmonics(result, ellmax, solid, racah)
     else:
         # Comparison
-        spherical_harmonics(result, lmax, solid, racah)
+        spherical_harmonics(result, ellmax, solid, racah)
         i = 0
-        for l in range(1, lmax + 1):
-            factor = np.sqrt(4 * np.pi / (2 * l + 1)) if racah else 1
+        for ell in range(1, ellmax + 1):
+            factor = np.sqrt(4 * np.pi / (2 * ell + 1)) if racah else 1
             if solid:
-                factor *= r**l
-            for m in range(l + 1):
+                factor *= r**ell
+            for m in range(ell + 1):
                 if m == 0:
-                    assert_allclose(result[i], factor * sph_harm_real(0, l, theta, phi))
+                    assert_allclose(result[i], factor * sph_harm_real(0, ell, theta, phi))
                     i += 1
                 else:
-                    yc, ys = sph_harm_real(m, l, theta, phi)
+                    yc, ys = sph_harm_real(m, ell, theta, phi)
                     assert_allclose(result[i], factor * yc)
                     i += 1
                     assert_allclose(result[i], factor * ys)
@@ -105,26 +104,26 @@ def test_regular_solid_spherical_harmonics():
     x, y, z = points.T
 
     # Prepare results array
-    lmax = 3
-    result = np.zeros(((lmax + 1) ** 2 - 1, npt), float)
+    ellmax = 3
+    result = np.zeros(((ellmax + 1) ** 2 - 1, npt), float)
     result[0] = z
     result[1] = x
     result[2] = y
 
     # Comparison
-    spherical_harmonics(result, lmax, solid=True)
-    # l = 1, m = 0
+    spherical_harmonics(result, ellmax, solid=True)
+    # ell = 1, m = 0
     assert_allclose(result[0], z)
-    # l = 1, m = 1
+    # ell = 1, m = 1
     assert_allclose(result[1], x)
     assert_allclose(result[2], y)
-    # l = 2, m = 0
+    # ell = 2, m = 0
     assert_allclose(result[3], (3 * z**2 - r**2) / 2)
-    # l = 2, m = 1
+    # ell = 2, m = 1
     assert_allclose(result[4], np.sqrt(3) * z * x)
     assert_allclose(result[5], np.sqrt(3) * z * y)
-    # l = 2, m = 2
+    # ell = 2, m = 2
     assert_allclose(result[6], np.sqrt(3) / 2 * (x**2 - y**2))
     assert_allclose(result[7], np.sqrt(3) * x * y)
-    # l = 3, m = 0
+    # ell = 3, m = 0
     assert_allclose(result[8], z * (5 * z**2 - 3 * r**2) / 2)

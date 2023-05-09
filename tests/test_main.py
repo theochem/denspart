@@ -18,24 +18,21 @@
 # --
 """Unit tests for the module denspart.__main__."""
 
-
-from importlib import resources
 import os
 import tempfile
+from pathlib import Path
 
 import numpy as np
-
-from ..vh import ProModel
-from ..__main__ import main
+from denspart.__main__ import main
+from denspart.vh import ProModel
 
 
 def test_cli(ndarrays_regression):
-    with resources.path("denspart.test", "density-water.npz") as fn_npz:
-        with tempfile.TemporaryDirectory("denspart", "test_cli") as dn:
-            fn_results = os.path.join(dn, "results.npz")
-            main([str(fn_npz), fn_results])
-            assert os.path.isfile(fn_results)
-            results = np.load(fn_results)
-            pro_model = ProModel.from_dict(results)
+    with tempfile.TemporaryDirectory("denspart", "test_cli") as dn:
+        fn_results = os.path.join(dn, "results.npz")
+        main([str(Path("tests", "density-water.npz")), fn_results, "--nocache"])
+        assert os.path.isfile(fn_results)
+        results = np.load(fn_results)
+        pro_model = ProModel.from_dict(results)
     assert len(pro_model.fns) == 4
     ndarrays_regression.check(dict(results))

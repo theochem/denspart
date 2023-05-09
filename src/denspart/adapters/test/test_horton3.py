@@ -18,18 +18,15 @@
 # --
 """Test the input preparation with HORTON3 modules."""
 
-from importlib import resources
 import os
-
-import pytest
+from importlib import resources
 
 import numpy as np
+import pytest
+from iodata.utils import FileFormatWarning
 from numpy.testing import assert_allclose
 
-from iodata.utils import FileFormatWarning
-
 from ..horton3 import main
-
 
 FILENAMES = [
     "2h-azirine-cc.fchk",

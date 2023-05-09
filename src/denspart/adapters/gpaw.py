@@ -22,19 +22,16 @@
 import argparse
 
 import numpy as np
+from ase.units import Bohr
+from gpaw import restart
+from gpaw.utilities import unpack2
+from grid.atomgrid import AtomGrid
+from grid.onedgrid import OneDGrid
+from grid.rtransform import HyperbolicRTransform
 from numpy.testing import assert_allclose
 from scipy.interpolate import CubicSpline
 
-from ase.units import Bohr
-from gpaw.utilities import unpack2
-from gpaw import restart
-
-from grid.atomgrid import AtomGrid
-from grid.rtransform import HyperbolicRTransform
-from grid.onedgrid import OneDGrid
-
 from ..properties import spherical_harmonics
-
 
 __all__ = ["prepare_input"]
 
@@ -122,9 +119,7 @@ def get_uniform_grid_data(calc, cellvecs, atnums):
         data["charge_corrections"] = calc.get_pseudo_density_corrections()
         data["pseudo_density"] = calc.get_pseudo_density() * (Bohr**3)
         # Conversion to atomic units is needed. (?)
-        data["ae_density"] = calc.get_all_electron_density(gridrefinement=1) * (
-            Bohr**3
-        )
+        data["ae_density"] = calc.get_all_electron_density(gridrefinement=1) * (Bohr**3)
     else:
         # Spin-polarized case, convert to spin-sum and spin-difference densitities.
         corrections = calc.get_pseudo_density_corrections()
@@ -137,12 +132,8 @@ def get_uniform_grid_data(calc, cellvecs, atnums):
         data["pseudo_spindensity"] = density_pseudo_alpha - density_pseudo_beta
 
         # Conversion to atomic units is needed. (?)
-        density_ae_alpha = calc.get_all_electron_density(spin=0, gridrefinement=1) * (
-            Bohr**3
-        )
-        density_ae_beta = calc.get_all_electron_density(spin=1, gridrefinement=1) * (
-            Bohr**3
-        )
+        density_ae_alpha = calc.get_all_electron_density(spin=0, gridrefinement=1) * (Bohr**3)
+        density_ae_beta = calc.get_all_electron_density(spin=1, gridrefinement=1) * (Bohr**3)
         data["ae_density"] = density_ae_alpha + density_ae_beta
         data["ae_spindensity"] = density_ae_alpha - density_ae_beta
 
@@ -213,11 +204,11 @@ def get_atomic_grid_data(calc):
             # Dump splines basis for phi and phit.
             # These are the local atomic orbital basis functions (projected and all-electron).
             for iradial, phi_g in enumerate(setup.data.phi_jg):
-                l = setup_data["ls"][iradial]
-                dump_spline(setup_data, ("phi", iradial), phi_g, setup, l)
+                ell = setup_data["ls"][iradial]
+                dump_spline(setup_data, ("phi", iradial), phi_g, setup, ell)
             for iradial, phit_g in enumerate(setup.data.phit_jg):
-                l = setup_data["ls"][iradial]
-                dump_spline(setup_data, ("phit", iradial), phit_g, setup, l)
+                ell = setup_data["ls"][iradial]
+                dump_spline(setup_data, ("phit", iradial), phit_g, setup, ell)
             setups[id_setup] = setup_data
         else:
             # Reuse setup that was previously loaded and take the reordering of the
@@ -241,12 +232,12 @@ def get_atomic_grid_data(calc):
     return setups, atoms
 
 
-def get_horton2_order(ls):
+def get_horton2_order(ells):
     """Return a permutation of the basis functions to obtain HORTON 2 conventions.
 
     Parameters
     ----------
-    ls
+    ells
         Array with angular momenta of the basis functions.
 
     Returns
@@ -265,12 +256,12 @@ def get_horton2_order(ls):
         4: np.array([4, 5, 3, 6, 2, 7, 1, 8, 0]),
     }
     result = []
-    for l in ls:
-        result.extend(local_orders[l] + len(result))
+    for ell in ells:
+        result.extend(local_orders[ell] + len(result))
     return np.array(result)
 
 
-def dump_spline(data, key, y, setup, l):
+def dump_spline(data, key, y, setup, ell):
     """Convert a spline from a GPAW atom setup.
 
     Parameters
@@ -283,7 +274,7 @@ def dump_spline(data, key, y, setup, l):
         Function values at the spline grid points.
     setup
         The GPAW setup to which this spline belongs.
-    l
+    ell
         Angular momentum.
 
     """
@@ -303,15 +294,15 @@ def dump_spline(data, key, y, setup, l):
     assert_allclose(rad_short.weights, setup.rgd.dr_g[:size_short])
 
     # Correct normalization and create spline.
-    ycorrected = y * np.sqrt((2 * l + 1) / np.pi) / 2
+    ycorrected = y * np.sqrt((2 * ell + 1) / np.pi) / 2
     cs_short = CubicSpline(rad_short.points, ycorrected[:size_short], bc_type="natural")
 
     # Radial grid within the muffin tin sphere
-    data[key + ("radgrid",)] = rad_short
+    data[(*key, "radgrid")] = rad_short
     # Cubic spline
-    data[key + ("spline",)] = cs_short
+    data[(*key, "spline")] = cs_short
     # Radius of the sphere.
-    data[key + ("rcut",)] = rcut
+    data[(*key, "rcut")] = rcut
 
 
 def compute_augmentation_spheres(uniform_data, setups, atoms, atnums, atcoords):
@@ -359,9 +350,7 @@ def compute_augmentation_spheres(uniform_data, setups, atoms, atnums, atcoords):
 
         # Add things up and compare.
         # - core part
-        myqcors[iatom] = (
-            atgrid_short.integrate(atom_data["density_c_cor"]) - atnums[iatom]
-        )
+        myqcors[iatom] = atgrid_short.integrate(atom_data["density_c_cor"]) - atnums[iatom]
         # - valence part
         vcor = atgrid_short.integrate(atom_data["density_v_cor"])
         myqcors[iatom] += vcor
@@ -386,12 +375,12 @@ def compute_augmentation_spheres(uniform_data, setups, atoms, atnums, atcoords):
     print("  ~~~~~~~  ~~~~~~~~~~~~~  ~~~~~~~~~~~~~  ~~~~~~~~~~~~~")
 
     # Checks on the total charge
-    print("  GPAW total charge:     {:10.3e}".format(nelec_pseudo + qcors.sum()))
-    print("  DensPart total charge: {:10.3e}".format(nelec_pseudo + myqcors.sum()))
+    print(f"  GPAW total charge:     {nelec_pseudo + qcors.sum():10.3e}")
+    print(f"  DensPart total charge: {nelec_pseudo + myqcors.sum():10.3e}")
     assert_allclose(qcors, myqcors)
     if sqcors is not None:
-        print("  GPAW total spin:       {:10.3e}".format(spin_pseudo + sqcors.sum()))
-        print("  DensPart total spin:   {:10.3e}".format(spin_pseudo + mysqcors.sum()))
+        print(f"  GPAW total spin:       {spin_pseudo + sqcors.sum():10.3e}")
+        print(f"  DensPart total spin:   {spin_pseudo + mysqcors.sum():10.3e}")
         assert_allclose(sqcors, mysqcors)
 
 
@@ -421,14 +410,14 @@ def eval_correction(atom_data, setup_data):
     """
     # Setup atomic grid within the muffin tin sphere.
     radgrid = setup_data[("nc", "radgrid")]
-    ls = setup_data["ls"]
-    lmax = max(ls)
-    # Twice lmax is used for the degree of the angular grid, because we include products
-    # of two orbitals up to angular momentum lmax. Those products have up to angular
-    # momentum 2 * lmax.
+    ells = setup_data["ls"]
+    ellmax = max(ells)
+    # Twice ellmax is used for the degree of the angular grid, because we include products
+    # of two orbitals up to angular momentum ellmax. Those products have up to angular
+    # momentum 2 * ellmax.
     grid = AtomGrid(
         radgrid,
-        degrees=[2 * lmax] * radgrid.size,
+        degrees=[2 * ellmax] * radgrid.size,
     )
 
     d = np.linalg.norm(grid.points, axis=1)
@@ -441,16 +430,16 @@ def eval_correction(atom_data, setup_data):
     atom_data["density_c_cor"] = atom_data["density_c"] - atom_data["density_ct"]
 
     # Compute real spherical harmonics (with Racah normalization) on the grid.
-    polys = np.zeros(((lmax + 1) ** 2 - 1, grid.size), float)
+    polys = np.zeros(((ellmax + 1) ** 2 - 1, grid.size), float)
     polys[0] = grid.points[:, 2]
     polys[1] = grid.points[:, 0]
     polys[2] = grid.points[:, 1]
-    spherical_harmonics(polys, lmax, racah=True)
+    spherical_harmonics(polys, ellmax, racah=True)
 
     # Evaluate each pseudo and ae basis function in the atomic grid.
     basis_fns = []
     basist_fns = []
-    for iradial, l in enumerate(ls):
+    for iradial, ell in enumerate(ells):
         # Evaluate radial functions.
         phi = setup_data[("phi", iradial, "spline")]
         basis = phi(d)
@@ -458,13 +447,13 @@ def eval_correction(atom_data, setup_data):
         basist = phit(d)
 
         # Multiply with the corresponding spherical harmonics
-        if l == 0:
+        if ell == 0:
             basis_fns.append(basis)
             basist_fns.append(basist)
         else:
             # Number of spherical harmonics and offset in the polys array.
-            nfn = 2 * l + 1
-            offset = l**2 - 1
+            nfn = 2 * ell + 1
+            offset = ell**2 - 1
             for ifn in range(nfn):
                 poly = polys[offset + ifn]
                 basis_fns.append(basis * poly)
@@ -511,9 +500,7 @@ def eval_correction(atom_data, setup_data):
     # Store electronic valence densities
     density_v_cor = density_v - density_vt
     # Sanity check
-    assert np.allclose(
-        grid.integrate(density_v_cor), np.dot((olp - olpt).ravel(), dm.ravel())
-    )
+    assert np.allclose(grid.integrate(density_v_cor), np.dot((olp - olpt).ravel(), dm.ravel()))
     atom_data["density_v"] = density_v
     atom_data["density_vt"] = density_vt
     atom_data["density_v_cor"] = density_v_cor
@@ -536,7 +523,7 @@ def compute_uniform_points(uniform_data):
     # construct array with point coordinates
     shape = uniform_data["shape"]
     grid_rvecs = uniform_data["grid_vecs"]
-    points = np.zeros(tuple(shape) + (3,))
+    points = np.zeros((*tuple(shape), 3))
     # pylint: disable=too-many-function-args
     points += np.outer(np.arange(shape[0]), grid_rvecs[0]).reshape(shape[0], 1, 1, 3)
     points += np.outer(np.arange(shape[1]), grid_rvecs[1]).reshape(1, shape[1], 1, 3)

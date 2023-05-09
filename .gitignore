@@ -1,7 +1,6 @@
 *.npz
 *.h5
 tmp
-denspart/_version.py
 activate-*-dev-python-*.sh
 coverage*.xml
 .coverage
@@ -33,6 +32,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+_version.py
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -117,3 +117,13 @@ ENV/
 
 # Ignore mac .DS_Store
 .DS_Store
+
+# Direnv
+env
+.envrc
+
+# Pytest
+.pytest_cache
+
+# Ruff
+.ruff_cache

@@ -22,55 +22,47 @@
 import argparse
 
 import numpy as np
-
-from iodata import dump_one, IOData
+from iodata import IOData, dump_one
 from iodata.formats.xyz import DEFAULT_ATOM_COLUMNS
 from iodata.utils import angstrom
-
 
 __all__ = ["main"]
 
 # pylint: disable=unnecessary-lambda
-ATOM_COLUMNS = DEFAULT_ATOM_COLUMNS + [
-    (
-        "atffparams",
-        "charges",
-        (),
-        float,
-        (lambda word: float(word)),
-        (lambda value: "{:15.10f}".format(value)),
-    ),
+ATOM_COLUMNS = [
+    *DEFAULT_ATOM_COLUMNS,
+    ("atffparams", "charges", (), float, lambda word: float(word), lambda value: f"{value:15.10f}"),
     (
         "atffparams",
         "rcubed",
         (),
         float,
-        (lambda word: float(word) * angstrom**3),
-        (lambda value: "{:15.10f}".format(value / angstrom**3)),
+        lambda word: float(word) * angstrom**3,
+        lambda value: "{:15.10f}".format(value / angstrom**3),
     ),
     (
         "atffparams",
         "valence_charges",
         (),
         float,
-        (lambda word: float(word)),
-        (lambda value: "{:15.10f}".format(value)),
+        lambda word: float(word),
+        lambda value: f"{value:15.10f}",
     ),
     (
         "atffparams",
         "core_charges",
         (),
         float,
-        (lambda word: float(word)),
-        (lambda value: "{:15.10f}".format(value)),
+        lambda word: float(word),
+        lambda value: f"{value:15.10f}",
     ),
     (
         "atffparams",
         "valence_widths",
         (),
         float,
-        (lambda word: float(word * angstrom)),
-        (lambda value: "{:15.10f}".format(value / angstrom)),
+        lambda word: float(word * angstrom),
+        lambda value: f"{value / angstrom:15.10f}",
     ),
 ]
 
@@ -98,9 +90,7 @@ def main():
 def parse_args():
     """Parse command-line arguments."""
     description = "Write denspart results as extended XYZ file."
-    parser = argparse.ArgumentParser(
-        prog="denspart-write-extxyz", description=description
-    )
+    parser = argparse.ArgumentParser(prog="denspart-write-extxyz", description=description)
     parser.add_argument("out_npz", help="The results from the main denspart script.")
     parser.add_argument("out_xyz", help="The extended XZY file.")
     return parser.parse_args()

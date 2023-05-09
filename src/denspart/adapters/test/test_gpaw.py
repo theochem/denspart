@@ -19,15 +19,14 @@
 """Test the input preparation with GAPW."""
 
 
-from importlib import resources
 import os
 import shutil
+from importlib import resources
 
 import numpy as np
-from numpy.testing import assert_allclose
-
 from ase import Atoms
 from gpaw import GPAW, setup_paths
+from numpy.testing import assert_allclose
 
 from ..gpaw import main
 

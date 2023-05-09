@@ -21,7 +21,7 @@
 
 from collections.abc import Callable
 
-__all__ = ("ComputeCache", )
+__all__ = ("ComputeCache",)
 
 
 class ComputeCache:
@@ -40,7 +40,7 @@ class ComputeCache:
 
 def compute_cached(cache: ComputeCache, until: str, key: tuple, func: Callable):
     """Lookup a result or compute it.
-    
+
     Parameters
     ----------
     cache
@@ -54,7 +54,7 @@ def compute_cached(cache: ComputeCache, until: str, key: tuple, func: Callable):
     func
         A callable taking no arguments to compute the result when it
         is not available in the cache.
-    
+
     Returns
     -------
     result

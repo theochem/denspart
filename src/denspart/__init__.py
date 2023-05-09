@@ -20,8 +20,6 @@
 
 # Import submodules defining ProModel and its subclasses, such that they are registered.
 # This also makes it easier to use modules in the package.
-import denspart.vh
-import denspart.mbis
 
 try:
     from ._version import __version__

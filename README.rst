@@ -245,27 +245,36 @@ the geometry. A minimal working example can be found in `examples/psi4 <examples
 Development setup
 =================
 
-The development environment is configured as follows:
+The development environment is configured as follows.
+It is assumed that you have `direnv <https://direnv.net/>`_ installed.
+(If not, you can manually the virtual environment.)
 
 .. code-block:: bash
 
-    # Install the CI driver
-    pip install roberto
     # Clone git repo, assuming you have ssh access to github
     git clone git@github.com:theochem/denspart.git
     cd denspart
-    # Run first part of the CI, includes making a new test env with all dependencies.
-    rob lint-static
-    # Activates the development env
-    source activate-venv-denspart-dev-python-3.?.sh
-    # Install dependencies
-    # - Mandatory, but not yet included in setup.py
-    pip install git+https://github.com/theochem/grid.git
-    # - Optional, for testing and interfaces, not included in setup.py
-    pip install --upgrade scipy
+    # Create a virtual environment with all dependencies needed for testing
+    python -m venv env
+    echo "source env/bin/activate" > .envrc
+    direnv allow
+    pip install -U pip
+    pip install -e .
+    # Mandatory dependency, but not yet included in setup.py
+    pip install --upgrade git+https://github.com/theochem/grid.git
+    # Development tools
+    pip install --upgrade pre-commit ruff black
+    # Extra dependency for testing adapters
     pip install --upgrade git+https://github.com/theochem/iodata.git
     pip install --upgrade git+https://github.com/theochem/gbasis.git
     pip install --upgrade git+https://github.com/tovrstra/pytest-regressions@npz
     pip install --upgrade ase
-    # (Make sure BLAS is installed, so GPAW can link with -lblas)
+    # (Make sure BLAS and LibXC are installed, so GPAW can link to them.)
     pip install --upgrade gpaw
+
+To run all tests locally:
+
+.. code-block:
+
+    pre-commit run --all
+    pytest

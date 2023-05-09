@@ -24,11 +24,8 @@ from itertools import combinations
 
 import numpy as np
 
-from .vh import BasisFunction, ProModel
 from .cache import compute_cached
-
-
-
+from .vh import BasisFunction, ProModel
 
 __all__ = ["MBISProModel"]
 
@@ -49,7 +46,7 @@ class ExponentialFunction(BasisFunction):
         return self.pars[0]
 
     @property
-    def exponent(self):  # noqa: D401
+    def exponent(self):
         """Exponent of the exponential functions."""
         return self.pars[1]
 
@@ -68,15 +65,15 @@ class ExponentialFunction(BasisFunction):
             cache,
             until="forever",
             key=("dists", *self.center, len(points)),
-            func=(lambda : np.linalg.norm(points - self.center, axis=1)),
+            func=(lambda: np.linalg.norm(points - self.center, axis=1)),
         )
-    
+
     def _compute_exp(self, exponent, dists, cache=None):
         return compute_cached(
             cache,
             until="end-ekld",
             key=("exp", *self.center, len(dists)),
-            func=(lambda: np.exp(-exponent * dists))
+            func=(lambda: np.exp(-exponent * dists)),
         )
 
     def compute(self, points, cache=None):
@@ -85,7 +82,7 @@ class ExponentialFunction(BasisFunction):
             return np.full(len(points), np.inf)
         dists = self._compute_dists(points, cache)
         exp = self._compute_exp(exponent, dists, cache)
-        prefactor = population * (exponent ** 3 / 8 / np.pi)
+        prefactor = population * (exponent**3 / 8 / np.pi)
         return prefactor * exp
 
     def compute_derivatives(self, points, cache=None):
@@ -94,8 +91,8 @@ class ExponentialFunction(BasisFunction):
             return np.full((2, len(points)), np.inf)
         dists = self._compute_dists(points, cache)
         exp = self._compute_exp(exponent, dists, cache)
-        factor = exponent ** 3 / 8 / np.pi
-        vector = (population * exponent ** 2 / 8 / np.pi) * (3 - dists * exponent)
+        factor = exponent**3 / 8 / np.pi
+        vector = (population * exponent**2 / 8 / np.pi) * (3 - dists * exponent)
         return np.array([factor * exp, vector * exp])
 
 
@@ -118,14 +115,13 @@ def connected_vertices(pairs, vertices):
             else:
                 members1.append(item0)
                 lookup[item0] = members1
+        elif members1 is None:
+            members0.append(item1)
+            lookup[item1] = members0
         else:
-            if members1 is None:
-                members0.append(item1)
-                lookup[item1] = members0
-            else:
-                members0.extend(members1)
-                for item in members1:
-                    lookup[item] = members0
+            members0.extend(members1)
+            for item in members1:
+                lookup[item] = members0
     return set(frozenset(cluster) for cluster in lookup.values())
 
 
@@ -149,6 +145,7 @@ class MBISProModel(ProModel):
             used to reduce that number of shells, outer shells being removed first.
         """
         fns = []
+        nshell_map = {} if nshell_map is None else nshell_map
         for iatom, (atnum, atcoord) in enumerate(zip(atnums, atcoords)):
             nshell = nshell_map.get(atnum)
             shells = INITIAL_MBIS_PARAMETERS[atnum]
@@ -185,17 +182,14 @@ class MBISProModel(ProModel):
             pairs = [
                 (fn1, fn2)
                 for fn1, fn2 in combinations(fns, 2)
-                if abs(fn1.exponent - fn2.exponent)
-                < eps * (fn1.exponent + fn2.exponent) / 2
+                if abs(fn1.exponent - fn2.exponent) < eps * (fn1.exponent + fn2.exponent) / 2
             ]
             clusters = connected_vertices(pairs, fns)
             for cluster in clusters:
                 population = sum(fn.population for fn in cluster)
                 exponent = sum(fn.exponent for fn in cluster) / len(cluster)
                 new_fns.append(
-                    ExponentialFunction(
-                        iatom, pro_model.atcoords[iatom], [population, exponent]
-                    )
+                    ExponentialFunction(iatom, pro_model.atcoords[iatom], [population, exponent])
                 )
         return pro_model.__class__(pro_model.atnums, pro_model.atcoords, new_fns)
 
