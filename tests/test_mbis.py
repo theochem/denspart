@@ -62,7 +62,7 @@ def test_example():
     data = pro_model1.to_dict()
     pro_model2 = ProModel.from_dict(data)
     assert isinstance(pro_model2, pro_model1.__class__)
-    for fn1, fn2 in zip(pro_model1.fns, pro_model2.fns):
+    for fn1, fn2 in zip(pro_model1.fns, pro_model2.fns, strict=True):
         assert isinstance(fn2, fn1.__class__)
         assert fn1.iatom == fn2.iatom
         assert_allclose(fn1.center, fn2.center)

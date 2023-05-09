@@ -463,7 +463,7 @@ def eval_correction(atom_data, setup_data):
     # Construct the local overlap matrix and compare to the one taken from GPAW.
     olp = np.zeros((len(basis_fns), len(basis_fns)))
     olpt = np.zeros((len(basis_fns), len(basis_fns)))
-    for ibasis0, (phi0, phit0) in enumerate(zip(basis_fns, basist_fns)):
+    for ibasis0, (phi0, phit0) in enumerate(zip(basis_fns, basist_fns, strict=True)):
         for ibasis1 in range(ibasis0 + 1):
             phi1 = basis_fns[ibasis1]
             phit1 = basist_fns[ibasis1]
@@ -486,7 +486,7 @@ def eval_correction(atom_data, setup_data):
     if spindm is not None:
         spindensity_v = np.zeros(grid.size)
         spindensity_vt = np.zeros(grid.size)
-    for ibasis0, (phi0, phit0) in enumerate(zip(basis_fns, basist_fns)):
+    for ibasis0, (phi0, phit0) in enumerate(zip(basis_fns, basist_fns, strict=True)):
         for ibasis1 in range(ibasis0 + 1):
             phi1 = basis_fns[ibasis1]
             phit1 = basist_fns[ibasis1]

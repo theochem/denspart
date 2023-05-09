@@ -371,7 +371,7 @@ class ProModel(metaclass=ProModelMeta):
             for fn in self.fns:
                 pro += fn.compute(grid.points, cache)
         else:
-            for fn, localgrid in zip(self.fns, localgrids):
+            for fn, localgrid in zip(self.fns, localgrids, strict=True):
                 np.add.at(pro, localgrid.indices, fn.compute(localgrid.points, cache))
         return pro
 
