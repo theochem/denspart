@@ -156,7 +156,7 @@ def optimize_pro_model(
             options={"gtol": gtol, "maxiter": maxiter},
         )
 
-    print("-----  -----------  -----------  -----------  -----------  -----------")
+    print("-----  -----  -----------  -----------  -----------  -----------  -----------")
     # Check for convergence.
     print(f'Optimizer message: "{optresult.message}"')
     if not optresult.success:
