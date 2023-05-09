@@ -18,8 +18,6 @@
 # --
 """Unit tests for the module denspart.__main__."""
 
-import os
-import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -29,12 +27,11 @@ from denspart.vh import ProModel
 
 
 @pytest.mark.filterwarnings("ignore:delta_grad:UserWarning")
-def test_cli(ndarrays_regression):
-    with tempfile.TemporaryDirectory("denspart", "test_cli") as dn:
-        fn_results = os.path.join(dn, "results.npz")
-        main([str(Path("tests", "density-water.npz")), fn_results, "--nocache"])
-        assert os.path.isfile(fn_results)
-        results = np.load(fn_results)
-        pro_model = ProModel.from_dict(results)
+def test_cli(ndarrays_regression, tmp_path):
+    fn_results = tmp_path / "results.npz"
+    main([str(Path("tests", "density-water.npz")), str(fn_results), "--nocache"])
+    assert fn_results.is_file()
+    results = np.load(fn_results)
+    pro_model = ProModel.from_dict(results)
     assert len(pro_model.fns) == 4
     ndarrays_regression.check(dict(results), default_tolerance=dict(atol=1e-6))
