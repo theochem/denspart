@@ -274,7 +274,7 @@ It is assumed that you have `direnv <https://direnv.net/>`_ installed.
 
 To run all tests locally:
 
-.. code-block:
+.. code-block:: bash
 
     pre-commit run --all
     pytest
