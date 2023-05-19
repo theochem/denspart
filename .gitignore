@@ -123,3 +123,5 @@ ENV/
 
 # Ruff
 .ruff_cache
+
+src/examples/horton3/main.py
