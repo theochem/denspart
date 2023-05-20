@@ -143,13 +143,6 @@ def optimize_pro_model(
     with np.errstate(all="raise"):
         # The errstate is changed to detect potentially nasty numerical issues.
         # Optimize parameters within the bounds.
-
-        # A = np.zeros((len(pars0), len(pars0)), float)
-        # A[0, 0:-1:2] = 1
-        # b = np.zeros((len(pars0, )))
-        # b[0] = pop
-        # print(A, b)
-        # constraint = LinearConstraint(A, b, b, keep_feasible=True)
         bounds = sum([fn.bounds for fn in pro_model.fns], [])
 
         optresult = minimize(
@@ -159,7 +152,6 @@ def optimize_pro_model(
             jac=True,
             hess=SR1(),
             bounds=bounds,
-            # constraints=constraint,
             callback=callback,
             options={"gtol": gtol, "maxiter": maxiter},
         )
@@ -486,7 +478,6 @@ def ekld(pars, grid, density, pro_model, localgrids, pop, cache=None, density_cu
         localgrid = localgrids[ifn]
         fn_derivatives = fn.compute_derivatives(localgrid.points, cache)
         gradient[ipar : ipar + fn.npar] = fn.population_derivatives - np.einsum(
-            # gradient[ipar: ipar + fn.npar] =  - np.einsum(
             "i,i,ji",
             localgrid.weights,
             ratio[localgrid.indices],
