@@ -175,7 +175,7 @@ class GISAProModel(ProModel):
             exponents = get_alpha(atnums[iatom])
             for iprim in range(atnfns[iatom]):
                 fn_pars = pars[ipar]
-                fns.append(GaussianFunction(iatom, atcoord, fn_pars, exponents[iprim]))
+                fns.append(GaussianFunction(iatom, atcoord, [fn_pars], exponents[iprim]))
                 ipar += 1
         return cls(atnums, atcoords, fns)
 
@@ -196,4 +196,4 @@ def get_alpha(atnum):
 
 def get_initial_population(atnum, exponents):
     """Get initial population based on atomic number `atnum`."""
-    return np.ones_like(exponents) * atnum / len(exponents)
+    return np.ones_like(exponents) * atnum

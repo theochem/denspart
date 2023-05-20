@@ -24,7 +24,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 from denspart.gisa import GaussianFunction, GISAProModel
-from denspart.vh import optimize_reduce_pro_model
+from denspart.vh import ProModel, optimize_reduce_pro_model
 from grid.basegrid import Grid
 from numpy.testing import assert_allclose
 
@@ -37,14 +37,14 @@ def test_example():
     pro_model0 = GISAProModel.from_geometry(data["atnums"], data["atcoords"])
     pro_model1 = optimize_reduce_pro_model(pro_model0, grid, data["density"])[0]
     assert len(pro_model1.fns) == 14
-    # data = pro_model1.to_dict()
-    # pro_model2 = ProModel.from_dict(data)
-    # assert isinstance(pro_model2, pro_model1.__class__)
-    # for fn1, fn2 in zip(pro_model1.fns, pro_model2.fns, strict=True):
-    #     assert isinstance(fn2, fn1.__class__)
-    #     assert fn1.iatom == fn2.iatom
-    #     assert_allclose(fn1.center, fn2.center)
-    #     assert_allclose(fn1.pars, fn2.pars)
+    data = pro_model1.to_dict()
+    pro_model2 = ProModel.from_dict(data)
+    assert isinstance(pro_model2, pro_model1.__class__)
+    for fn1, fn2 in zip(pro_model1.fns, pro_model2.fns, strict=True):
+        assert isinstance(fn2, fn1.__class__)
+        assert fn1.iatom == fn2.iatom
+        assert_allclose(fn1.center, fn2.center)
+        assert_allclose(fn1.pars, fn2.pars)
 
 
 def test_reduce_pop():

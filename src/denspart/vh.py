@@ -463,13 +463,18 @@ def ekld(pars, grid, density, pro_model, localgrids, pop, cache=None, density_cu
         ratio = density / pro
     lnratio[sick] = 0.0
     ratio[sick] = 0.0
+
+    # remove inf and -inf
+    mask = np.isinf(lnratio)
+    lnratio = np.where(mask, 0, lnratio)
+    mask = np.isinf(ratio)
+    ratio = np.where(mask, 0, ratio)
+
     # Function value
     kld = np.einsum("i,i,i", grid.weights, density, lnratio)
 
     constraint = pop - pro_model.population
     result = kld - constraint
-    # constraint=0.0
-    # result = kld
     # Gradient
     ipar = 0
     gradient = np.zeros_like(pars)
