@@ -463,6 +463,13 @@ def ekld(pars, grid, density, pro_model, localgrids, pop, cache=None, density_cu
         ratio = density / pro
     lnratio[sick] = 0.0
     ratio[sick] = 0.0
+
+    # remove inf and -inf
+    mask = np.isinf(lnratio)
+    lnratio = np.where(mask, 0, lnratio)
+    mask = np.isinf(ratio)
+    ratio = np.where(mask, 0, ratio)
+
     # Function value
     kld = np.einsum("i,i,i", grid.weights, density, lnratio)
 
@@ -476,7 +483,10 @@ def ekld(pars, grid, density, pro_model, localgrids, pop, cache=None, density_cu
         localgrid = localgrids[ifn]
         fn_derivatives = fn.compute_derivatives(localgrid.points, cache)
         gradient[ipar : ipar + fn.npar] = fn.population_derivatives - np.einsum(
-            "i,i,ji", localgrid.weights, ratio[localgrid.indices], fn_derivatives
+            "i,i,ji",
+            localgrid.weights,
+            ratio[localgrid.indices],
+            fn_derivatives,
         )
         ipar += fn.npar
 
