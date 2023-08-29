@@ -21,18 +21,18 @@ repos:
       args: ["--autofix", "--no-sort-keys"]
     - id: trailing-whitespace
 - repo: https://github.com/Lucas-C/pre-commit-hooks
-  rev: v1.5.1
+  rev: v1.5.4
   hooks:
     - id: remove-crlf
 - repo: https://github.com/psf/black
-  rev: 23.3.0
+  rev: 23.7.0
   hooks:
     - id: black
-- repo: https://github.com/charliermarsh/ruff-pre-commit
-  rev: 'v0.0.269'
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: 'v0.0.286'
   hooks:
     - id: ruff
 - repo: https://github.com/python-jsonschema/check-jsonschema
-  rev: 0.23.0
+  rev: 0.26.3
   hooks:
     - id: check-github-workflows
