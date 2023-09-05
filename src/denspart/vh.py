@@ -23,6 +23,7 @@ This code is very preliminary, so no serious docstrings yet.
 
 
 import time
+import typing
 from functools import partial
 
 import numpy as np
@@ -239,7 +240,7 @@ class ProModelMeta(type):
 
     """
 
-    registry = {}
+    registry: typing.ClassVar = {}
 
     def __new__(mcs, name, bases, namespace, **kwargs):
         result = super().__new__(mcs, name, bases, namespace, **kwargs)
@@ -250,7 +251,7 @@ class ProModelMeta(type):
 class ProModel(metaclass=ProModelMeta):
     """Base class for the promolecular density."""
 
-    registry = {}
+    registry: typing.ClassVar = {}
 
     def __init__(self, atnums, atcoords, fns):
         """Initialize the prodensity model.
