@@ -55,10 +55,25 @@ class ExponentialFunction(BasisFunction):
         return np.array([1.0, 0.0])
 
     def get_cutoff_radius(self, density_cutoff):
+        """Cutoff radius at which the exponential function becomes smaller than the given cutoff.
+
+        Parameter
+        ---------
+        density_cutoff
+            The threshold value for the density
+
+        Returns
+        -------
+        radius
+            The distance from the center where the exponential function
+            becomes smaller than the density_cutoff.
+        """
         if density_cutoff <= 0.0:
             return np.inf
         population, exponent = self.pars
-        return (np.log(population) - np.log(density_cutoff)) / exponent
+        return (
+            np.log(population) + 3 * np.log(exponent) - np.log(8 * np.pi) - np.log(density_cutoff)
+        ) / exponent
 
     def _compute_dists(self, points, cache=None):
         return compute_cached(
