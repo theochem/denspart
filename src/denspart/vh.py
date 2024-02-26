@@ -22,6 +22,7 @@ This code is very preliminary, so no serious docstrings yet.
 """
 
 
+import itertools
 import time
 import typing
 from functools import partial
@@ -144,7 +145,7 @@ def optimize_pro_model(
     with np.errstate(all="raise"):
         # The errstate is changed to detect potentially nasty numerical issues.
         # Optimize parameters within the bounds.
-        bounds = sum([fn.bounds for fn in pro_model.fns], [])
+        bounds = list(itertools.chain.from_iterable(fn.bounds for fn in pro_model.fns))
 
         optresult = minimize(
             cost_grad,
