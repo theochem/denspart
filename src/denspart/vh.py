@@ -22,13 +22,12 @@ This code is very preliminary, so no serious docstrings yet.
 """
 
 
-import itertools
 import time
 import typing
 from functools import partial
 
 import numpy as np
-from scipy.optimize import SR1, minimize
+from scipy.optimize import SR1, Bounds, minimize
 
 __all__ = ["optimize_reduce_pro_model", "BasisFunction", "ProModel", "ekld"]
 
@@ -141,11 +140,16 @@ def optimize_pro_model(
                 info["time"],
             )
         )
+        if not (np.isfinite(gradient).all() and np.isfinite(info["ekld"])):
+            raise ValueError(
+                "Encountered non-finite gradient. "
+                "Please report this issue on https://github.com/theochem/denspart/issues"
+            )
 
     with np.errstate(all="raise"):
         # The errstate is changed to detect potentially nasty numerical issues.
         # Optimize parameters within the bounds.
-        bounds = list(itertools.chain.from_iterable(fn.bounds for fn in pro_model.fns))
+        bounds = np.concatenate([fn.bounds for fn in pro_model.fns])
 
         optresult = minimize(
             cost_grad,
@@ -153,7 +157,7 @@ def optimize_pro_model(
             method="trust-constr",
             jac=True,
             hess=SR1(),
-            bounds=bounds,
+            bounds=Bounds(bounds[:, 0], bounds[:, 1], keep_feasible=True),
             callback=callback,
             options={"gtol": gtol, "maxiter": maxiter},
         )
