@@ -44,9 +44,11 @@ line-length = 100
 target-version = ['py310']
 
 [tool.ruff]
-select = ["E", "F", "UP", "B", "I", "PGH", "PL", "RUF"]
 line-length = 100
 target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "UP", "B", "I", "PGH", "PL", "RUF"]
 ignore = ["PLR2004", "PLR0913", "PLR0912", "PLW2901", "PLR0915"]
 
 [tool.pytest.ini_options]
