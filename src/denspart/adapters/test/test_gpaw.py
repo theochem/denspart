@@ -18,7 +18,6 @@
 # --
 """Test the input preparation with GAPW."""
 
-
 import os
 import shutil
 from importlib import resources

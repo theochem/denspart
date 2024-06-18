@@ -18,7 +18,6 @@
 # --
 """Write an density.npz file in a Psi4 job."""
 
-
 import numpy as np
 import psi4
 

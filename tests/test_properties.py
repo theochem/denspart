@@ -18,7 +18,6 @@
 # --
 """Unit tests for properties module."""
 
-
 import numpy as np
 import pytest
 from denspart.properties import spherical_harmonics

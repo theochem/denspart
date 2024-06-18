@@ -18,7 +18,6 @@
 # --
 """Unit tests for the module denspart.mbis."""
 
-
 from pathlib import Path
 
 import numpy as np

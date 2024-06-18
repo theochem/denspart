@@ -18,7 +18,6 @@
 # --
 """Prepare inputs for denspart from a GPAW calculation."""
 
-
 import argparse
 
 import numpy as np
@@ -355,21 +354,15 @@ def compute_augmentation_spheres(uniform_data, setups, atoms, atnums, atcoords):
         vcor = atgrid_short.integrate(atom_data["density_v_cor"])
         myqcors[iatom] += vcor
         print(
-            "  {:2d} {:4d}   {:12.7f}   {:12.7f}   {:12.5e}".format(
-                atnums[iatom],
-                iatom,
-                myqcors[iatom],
-                qcors[iatom],
-                myqcors[iatom] - qcors[iatom],
-            )
+            f"  {atnums[iatom]:2d} {iatom:4d}   {myqcors[iatom]:12.7f}"
+            f"   {qcors[iatom]:12.7f}   {myqcors[iatom] - qcors[iatom]:12.5e}"
         )
 
         if sqcors is not None:
             mysqcors[iatom] = atgrid_short.integrate(atom_data["spindensity_v_cor"])
             print(
-                "spin      {:12.7f}   {:12.7f}   {:12.5e}".format(
-                    mysqcors[iatom], sqcors[iatom], mysqcors[iatom] - sqcors[iatom]
-                )
+                f"spin      {mysqcors[iatom]:12.7f}   {sqcors[iatom]:12.7f}"
+                f"   {mysqcors[iatom] - sqcors[iatom]:12.5e}"
             )
 
     print("  ~~~~~~~  ~~~~~~~~~~~~~  ~~~~~~~~~~~~~  ~~~~~~~~~~~~~")

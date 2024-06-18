@@ -18,7 +18,6 @@
 # --
 """Computation cache with selective discard of obsolete intermediates."""
 
-
 from collections.abc import Callable
 
 __all__ = ("ComputeCache",)

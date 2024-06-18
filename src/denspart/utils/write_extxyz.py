@@ -18,7 +18,6 @@
 # --
 """Write denspart results into a nice extended XYZ."""
 
-
 import argparse
 
 import numpy as np

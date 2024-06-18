@@ -18,7 +18,6 @@
 # --
 """Compute atom-in-molecules properties."""
 
-
 import numpy as np
 
 from .cache import compute_cached

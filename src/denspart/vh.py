@@ -21,7 +21,6 @@
 This code is very preliminary, so no serious docstrings yet.
 """
 
-
 import time
 import typing
 from functools import partial

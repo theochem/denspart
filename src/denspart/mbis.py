@@ -19,7 +19,6 @@
 # pylint: disable=too-many-lines
 """Minimal Basis Iterative Stockholder."""
 
-
 from itertools import combinations
 
 import numpy as np

@@ -1,6 +1,6 @@
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v4.5.0
+  rev: v4.6.0
   hooks:
     - id: check-added-large-files
     - id: check-ast
@@ -24,15 +24,13 @@ repos:
   rev: v1.5.5
   hooks:
     - id: remove-crlf
-- repo: https://github.com/psf/black
-  rev: 24.2.0
-  hooks:
-    - id: black
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: 'v0.2.2'
+  rev: v0.4.9
   hooks:
+    - id: ruff-format
     - id: ruff
+      args: ["--fix", "--show-fixes"]
 - repo: https://github.com/python-jsonschema/check-jsonschema
-  rev: 0.28.0
+  rev: 0.28.5
   hooks:
     - id: check-github-workflows

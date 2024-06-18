@@ -36,7 +36,6 @@ This module is far from polished and is currently only used for prototyping:
 
 """
 
-
 import argparse
 
 import numpy as np
