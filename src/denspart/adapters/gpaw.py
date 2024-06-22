@@ -23,7 +23,7 @@ import argparse
 import numpy as np
 from ase.units import Bohr
 from gpaw import restart
-from gpaw.utilities import unpack2
+from gpaw.utilities import unpack_density
 from grid.atomgrid import AtomGrid
 from grid.onedgrid import OneDGrid
 from grid.rtransform import HyperbolicRTransform
@@ -216,11 +216,11 @@ def get_atomic_grid_data(calc):
 
         atom_data = {}
         if calc.wfs.nspins == 1:
-            atom_data["dm"] = unpack2(calc.density.D_asp.get(iatom)[0])[order][:, order]
+            atom_data["dm"] = unpack_density(calc.density.D_asp.get(iatom)[0])[order][:, order]
         else:
             # spin-summed and spin-difference atomic density matrices.
-            dma = unpack2(calc.density.D_asp.get(iatom)[0])[order][:, order]
-            dmb = unpack2(calc.density.D_asp.get(iatom)[1])[order][:, order]
+            dma = unpack_density(calc.density.D_asp.get(iatom)[0])[order][:, order]
+            dmb = unpack_density(calc.density.D_asp.get(iatom)[1])[order][:, order]
             atom_data["dm"] = dma + dmb
             atom_data["spindm"] = dma - dmb
         assert atom_data["dm"].shape == (setup.ni, setup.ni)

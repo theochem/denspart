@@ -19,11 +19,10 @@
 """Test the input preparation with HORTON3 modules."""
 
 import os
-from importlib import resources
+from importlib.resources import as_file, files
 
 import numpy as np
 import pytest
-from iodata.utils import FileFormatWarning
 from numpy.testing import assert_allclose
 
 from ..horton3 import main
@@ -118,12 +117,10 @@ FILENAMES = [
 
 @pytest.mark.parametrize("fn_wfn", FILENAMES)
 def test_from_horton3_density(fn_wfn, tmpdir):
-    with resources.path("iodata.test.data", fn_wfn) as fn_full:
+    with as_file(files("iodata.test.data").joinpath(fn_wfn)) as fn_full:
         fn_density = os.path.join(tmpdir, "density.npz")
-        with pytest.warns(None) as record:
+        with pytest.warns():
             main([str(fn_full), fn_density])
-        if len(record) == 1:
-            assert issubclass(record[0].category, FileFormatWarning)
         assert os.path.isfile(fn_density)
         data = dict(np.load(fn_density))
 
@@ -133,12 +130,10 @@ def test_from_horton3_density(fn_wfn, tmpdir):
 
 @pytest.mark.parametrize("fn_wfn", ["hf_sto3g.fchk", "water_sto3g_hf_g03.fchk"])
 def test_from_horton3_all(fn_wfn, tmpdir):
-    with resources.path("iodata.test.data", fn_wfn) as fn_full:
+    with as_file(files("iodata.test.data").joinpath(fn_wfn)) as fn_full:
         fn_density = os.path.join(tmpdir, "density.npz")
-        with pytest.warns(None) as record:
+        with pytest.warns():
             main([str(fn_full), fn_density, "-s", "-g", "-o"])
-        if len(record) == 1:
-            assert issubclass(record[0].category, FileFormatWarning)
         assert os.path.isfile(fn_density)
         data = dict(np.load(fn_density))
 
