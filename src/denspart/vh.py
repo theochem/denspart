@@ -145,21 +145,20 @@ def optimize_pro_model(
                 "Please report this issue on https://github.com/theochem/denspart/issues"
             )
 
-    with np.errstate(all="raise"):
-        # The errstate is changed to detect potentially nasty numerical issues.
-        # Optimize parameters within the bounds.
-        bounds = np.concatenate([fn.bounds for fn in pro_model.fns])
+    # The errstate is changed to detect potentially nasty numerical issues.
+    # Optimize parameters within the bounds.
+    bounds = np.concatenate([fn.bounds for fn in pro_model.fns])
 
-        optresult = minimize(
-            cost_grad,
-            pars0,
-            method="trust-constr",
-            jac=True,
-            hess=SR1(),
-            bounds=Bounds(bounds[:, 0], bounds[:, 1], keep_feasible=True),
-            callback=callback,
-            options={"gtol": gtol, "maxiter": maxiter},
-        )
+    optresult = minimize(
+        cost_grad,
+        pars0,
+        method="trust-constr",
+        jac=True,
+        hess=SR1(),
+        bounds=Bounds(bounds[:, 0], bounds[:, 1], keep_feasible=True),
+        callback=callback,
+        options={"gtol": gtol, "maxiter": maxiter},
+    )
 
     print("-----  -----  -----------  -----------  -----------  -----------  -----------")
     # Check for convergence.
