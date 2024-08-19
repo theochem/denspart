@@ -20,9 +20,10 @@
 
 import numpy as np
 import pytest
-from denspart.properties import spherical_harmonics
 from numpy.testing import assert_allclose
 from scipy.special import sph_harm
+
+from denspart.properties import spherical_harmonics
 
 
 def sph_harm_real(m, n, theta, phi):
