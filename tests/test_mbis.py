@@ -22,10 +22,11 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from denspart.mbis import ExponentialFunction, MBISProModel, connected_vertices
-from denspart.vh import ProModel, optimize_reduce_pro_model
 from grid.basegrid import Grid
 from numpy.testing import assert_allclose
+
+from denspart.mbis import ExponentialFunction, MBISProModel, connected_vertices
+from denspart.vh import ProModel, optimize_reduce_pro_model
 
 
 def test_connected_vertices_simple():
