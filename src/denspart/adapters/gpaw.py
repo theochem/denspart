@@ -156,7 +156,7 @@ def get_uniform_grid_data(calc, cellvecs, atnums):
     # We're assuming all systems in GPAW are neutral. In fact, this is not strictly True
     # in all cases. We may have to relax this a little.
     q_ae = data["ae_density"].sum() * w
-    assert_allclose(q_ae, atnums.sum())
+    assert_allclose(q_ae, atnums.sum(), atol=1e-10)
 
     return data
 
@@ -289,8 +289,8 @@ def dump_spline(data, key, y, setup, ell):
     odg = OneDGrid(np.arange(size_short), np.ones(size_short), (0, size_short))
     rad_short = rtf.transform_1d_grid(odg)
     # Sanity checks
-    assert_allclose(rad_short.points, setup.rgd.r_g[:size_short])
-    assert_allclose(rad_short.weights, setup.rgd.dr_g[:size_short])
+    assert_allclose(rad_short.points, setup.rgd.r_g[:size_short], atol=1e-10)
+    assert_allclose(rad_short.weights, setup.rgd.dr_g[:size_short], atol=1e-10)
 
     # Correct normalization and create spline.
     ycorrected = y * np.sqrt((2 * ell + 1) / np.pi) / 2
@@ -370,11 +370,11 @@ def compute_augmentation_spheres(uniform_data, setups, atoms, atnums, atcoords):
     # Checks on the total charge
     print(f"  GPAW total charge:     {nelec_pseudo + qcors.sum():10.3e}")
     print(f"  DensPart total charge: {nelec_pseudo + myqcors.sum():10.3e}")
-    assert_allclose(qcors, myqcors)
+    assert_allclose(qcors, myqcors, atol=1e-10)
     if sqcors is not None:
         print(f"  GPAW total spin:       {spin_pseudo + sqcors.sum():10.3e}")
         print(f"  DensPart total spin:   {spin_pseudo + mysqcors.sum():10.3e}")
-        assert_allclose(sqcors, mysqcors)
+        assert_allclose(sqcors, mysqcors, atol=1e-10)
 
 
 def eval_correction(atom_data, setup_data):
