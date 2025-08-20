@@ -263,7 +263,7 @@ It is assumed that you have `direnv <https://direnv.net/>`_ installed.
     direnv allow
     pip install -U pip
     pip install -e .
-    # Mandatory dependency, but not yet included in setup.py
+    # Mandatory dependency, but not yet included in pyproject.toml
     pip install --upgrade git+https://github.com/theochem/grid.git
     # Development tools
     pip install --upgrade pre-commit ruff black
@@ -276,7 +276,7 @@ It is assumed that you have `direnv <https://direnv.net/>`_ installed.
     # Fedora: sudo dnf install libxc-devel blas-devel
     pip install --upgrade gpaw
     # Install GPAW pseudopotentials
-    gpaw install-data venv/share
+    gpaw install-data venv/share --no-register
 
 To run all tests locally:
 
