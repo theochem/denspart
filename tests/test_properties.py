@@ -21,24 +21,24 @@
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
-from scipy.special import sph_harm
+from scipy.special import sph_harm_y
 
 from denspart.properties import spherical_harmonics
 
 
-def sph_harm_real(m, n, theta, phi):
+def sph_harm_real(n, m, theta, phi):
     """Construct real spherical harmonics, using SciPy's sph_harm function.
 
     Parameters
     ----------
-    m
-        order
     n
         degree
+    m
+        order
     theta
-        azimuthal angle
-    phi
         polar angle
+    phi
+        azimuthal angle
 
     Returns
     -------
@@ -51,9 +51,9 @@ def sph_harm_real(m, n, theta, phi):
     """
     assert m >= 0
     if m == 0:
-        return sph_harm(m, n, theta, phi).real
+        return sph_harm_y(n, m, theta, phi).real
     else:
-        tmp = sph_harm(m, n, theta, phi) * np.sqrt(2) * (-1) ** m
+        tmp = sph_harm_y(n, m, theta, phi) * np.sqrt(2) * (-1) ** m
         return tmp.real, tmp.imag
 
 
@@ -65,8 +65,8 @@ def test_spherical_harmonics(ellmax, solid, racah):
     points = np.random.normal(0, 1, (npt, 3))
     r = np.linalg.norm(points, axis=1)
     x, y, z = points.T
-    phi = np.arccos(z / r)
-    theta = np.arctan2(y, x)
+    theta = np.arccos(z / r)
+    phi = np.arctan2(y, x)
 
     # Prepare results array
     result = np.zeros(((ellmax + 1) ** 2 - 1, npt), float)
@@ -87,10 +87,10 @@ def test_spherical_harmonics(ellmax, solid, racah):
                 factor *= r**ell
             for m in range(ell + 1):
                 if m == 0:
-                    assert_allclose(result[i], factor * sph_harm_real(0, ell, theta, phi))
+                    assert_allclose(result[i], factor * sph_harm_real(ell, 0, theta, phi))
                     i += 1
                 else:
-                    yc, ys = sph_harm_real(m, ell, theta, phi)
+                    yc, ys = sph_harm_real(ell, m, theta, phi)
                     assert_allclose(result[i], factor * yc)
                     i += 1
                     assert_allclose(result[i], factor * ys)
