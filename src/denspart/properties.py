@@ -22,7 +22,7 @@ import numpy as np
 
 from .cache import compute_cached
 
-__all__ = ["compute_radial_moments", "compute_multipole_moments", "spherical_harmonics"]
+__all__ = ["compute_multipole_moments", "compute_radial_moments", "spherical_harmonics"]
 
 
 def safe_ratio(density, pro, density_cutoff=1e-15):

@@ -149,7 +149,7 @@ def _compute_stuff(iodata, points, gradient, orbitals, chunk_size):
     if one_rdm is None:
         if iodata.mo is None:
             raise ValueError(
-                "The input file lacks wavefunction data with which " "the density can be computed."
+                "The input file lacks wavefunction data with which the density can be computed."
             )
         coeffs, occs = iodata.mo.coeffs, iodata.mo.occs
         one_rdm = np.dot(coeffs * occs, coeffs.T)
@@ -278,7 +278,7 @@ def parse_args(args=None):
         "--chunk-size",
         type=int,
         default=10000,
-        help="Number points on which the density is computed in one pass. " "[default=%(default)s]",
+        help="Number points on which the density is computed in one pass. [default=%(default)s]",
     )
     parser.add_argument(
         "-s",

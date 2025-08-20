@@ -28,7 +28,7 @@ from functools import partial
 import numpy as np
 from scipy.optimize import SR1, Bounds, minimize
 
-__all__ = ["optimize_reduce_pro_model", "BasisFunction", "ProModel", "ekld"]
+__all__ = ["BasisFunction", "ProModel", "ekld", "optimize_reduce_pro_model"]
 
 
 def optimize_reduce_pro_model(

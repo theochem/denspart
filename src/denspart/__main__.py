@@ -99,8 +99,7 @@ def parse_args(args=None):
         "--gtol",
         type=float,
         default=1e-8,
-        help="gtol convergence criterion for SciPy's trust-constr minimizer. "
-        "[default=%(default)s]",
+        help="gtol convergence criterion for SciPy's trust-constr minimizer. [default=%(default)s]",
     )
     parser.add_argument(
         "-m",

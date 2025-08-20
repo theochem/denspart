@@ -202,7 +202,7 @@ def write_output(fn_npz, data):
             data["density"] * data["points"][:, i], data["weights"]
         )
         print(f"Dipole moment {char} [a.u.]:  {dipole_moment:10.3f}")
-        print(f"Dipole moment {char} [Debye]: {dipole_moment/debye:10.3f}")
+        print(f"Dipole moment {char} [Debye]: {dipole_moment / debye:10.3f}")
     nelec = np.dot(data["density"], data["weights"])
     charge = data["atnums"].sum() - nelec
     print(f"Number of electrons:     {nelec:10.3f}")
