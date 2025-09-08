@@ -18,7 +18,7 @@ jobs:
         py: ["3.10", "3.11"]
 
     steps:
-      - uses: "actions/checkout@v4"
+      - uses: "actions/checkout@v5"
       - name: Setup python for test ${{ matrix.py }}
         uses: actions/setup-python@v6
         with:
