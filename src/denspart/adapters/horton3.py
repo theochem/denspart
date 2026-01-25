@@ -42,6 +42,7 @@ import numpy as np
 from gbasis.evals.eval import evaluate_basis
 from gbasis.evals.eval_deriv import evaluate_deriv_basis
 from gbasis.wrappers import from_iodata
+from grid.basegrid import Grid
 from grid.becke import BeckeWeights
 from grid.molgrid import MolGrid
 from grid.onedgrid import GaussChebyshev
@@ -116,10 +117,15 @@ def _setup_grid(atnums, atcoords, nrad, nang, store_atgrids):
     oned = GaussChebyshev(nrad)
     rgrid = BeckeRTransform(1e-4, 1.5).transform_1d_grid(oned)
     grid = MolGrid.from_size(atnums, atcoords, nang, rgrid, becke, store=store_atgrids)
+    
+    # Remove grid points with zero weight
+    if not store_atgrids:
+        keep = grid.weights > 1e-15
+        grid = Grid(grid.points[keep],grid.weights[keep])
     assert np.isfinite(grid.points).all()
     assert np.isfinite(grid.weights).all()
     assert (grid.weights >= 0).all()
-    # TODO: remove grid points with zero weight
+   
     return grid
 
 
