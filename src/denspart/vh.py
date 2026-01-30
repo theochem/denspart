@@ -111,6 +111,10 @@ def optimize_pro_model(
     print("#Iter  #Call         ekld          kld  -constraint     grad.rms  cputime (s)")
     print("-----  -----  -----------  -----------  -----------  -----------  -----------")
     pars0 = np.concatenate([fn.pars for fn in pro_model.fns])
+    # The errstate is changed to detect potentially nasty numerical issues.
+    # Optimize parameters within the bounds.
+    bounds = np.concatenate([fn.bounds for fn in pro_model.fns])
+
     cost_grad = partial(
         ekld,
         grid=grid,
@@ -127,6 +131,14 @@ def optimize_pro_model(
         # if info is None:
         #    return
         gradient = info["gradient"]
+        # Compute projected gradient
+        grad_proj = gradient.copy()
+        lower = bounds[:, 0]
+        upper = bounds[:, 1]
+        mask_lower = (_current_pars <= lower + 1e-10) & (gradient > 0)
+        mask_upper = (_current_pars >= upper - 1e-10) & (gradient < 0)
+        grad_proj[mask_lower | mask_upper] = 0.0
+
         print(
             "{:5d} {:6d} {:12.7f} {:12.7f} {:12.4e} {:12.4e} {:12.7f}".format(
                 opt_result.nit,
@@ -134,8 +146,7 @@ def optimize_pro_model(
                 info["ekld"],
                 info["kld"],
                 -info["constraint"],
-                # TODO: projected gradient may be better.
-                np.linalg.norm(gradient) / np.sqrt(len(gradient)),
+                np.linalg.norm(grad_proj) / np.sqrt(len(grad_proj)),
                 info["time"],
             )
         )
@@ -144,10 +155,6 @@ def optimize_pro_model(
                 "Encountered non-finite gradient. "
                 "Please report this issue on https://github.com/theochem/denspart/issues"
             )
-
-    # The errstate is changed to detect potentially nasty numerical issues.
-    # Optimize parameters within the bounds.
-    bounds = np.concatenate([fn.bounds for fn in pro_model.fns])
 
     optresult = minimize(
         cost_grad,
