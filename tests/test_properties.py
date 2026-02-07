@@ -21,7 +21,13 @@
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
-from scipy.special import sph_harm_y
+try:
+    from scipy.special import sph_harm_y
+except ImportError:
+    from scipy.special import sph_harm
+
+    def sph_harm_y(n, m, theta, phi):
+        return sph_harm(m, n, phi, theta)
 
 from denspart.properties import spherical_harmonics
 
