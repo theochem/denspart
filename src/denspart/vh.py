@@ -135,8 +135,35 @@ def optimize_pro_model(
         grad_proj = gradient.copy()
         lower = bounds[:, 0]
         upper = bounds[:, 1]
-        mask_lower = (_current_pars <= lower + 1e-10) & (gradient > 0)
-        mask_upper = (_current_pars >= upper - 1e-10) & (gradient < 0)
+        # Identify parameters effectively at their bounds in a scale-aware way.
+        tol = 1e-8
+        
+        # Check lower bounds
+        lower_finite = np.isfinite(lower)
+        scale_lower = np.ones_like(lower)
+        scale_lower[lower_finite] = np.maximum(1.0, np.abs(lower[lower_finite]))
+        at_lower = np.zeros_like(lower, dtype=bool)
+        at_lower[lower_finite] = np.isclose(
+            _current_pars[lower_finite], 
+            lower[lower_finite], 
+            rtol=tol, 
+            atol=tol * scale_lower[lower_finite]
+        ) | (_current_pars[lower_finite] < lower[lower_finite])
+
+        # Check upper bounds
+        upper_finite = np.isfinite(upper)
+        scale_upper = np.ones_like(upper)
+        scale_upper[upper_finite] = np.maximum(1.0, np.abs(upper[upper_finite]))
+        at_upper = np.zeros_like(upper, dtype=bool)
+        at_upper[upper_finite] = np.isclose(
+            _current_pars[upper_finite], 
+            upper[upper_finite], 
+            rtol=tol, 
+            atol=tol * scale_upper[upper_finite]
+        ) | (_current_pars[upper_finite] > upper[upper_finite])
+
+        mask_lower = at_lower & (gradient > 0)
+        mask_upper = at_upper & (gradient < 0)
         grad_proj[mask_lower | mask_upper] = 0.0
 
         print(
