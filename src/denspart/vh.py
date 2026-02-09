@@ -111,6 +111,10 @@ def optimize_pro_model(
     print("#Iter  #Call         ekld          kld  -constraint     grad.rms  cputime (s)")
     print("-----  -----  -----------  -----------  -----------  -----------  -----------")
     pars0 = np.concatenate([fn.pars for fn in pro_model.fns])
+    # The errstate is changed to detect potentially nasty numerical issues.
+    # Optimize parameters within the bounds.
+    bounds = np.concatenate([fn.bounds for fn in pro_model.fns])
+
     cost_grad = partial(
         ekld,
         grid=grid,
@@ -127,6 +131,41 @@ def optimize_pro_model(
         # if info is None:
         #    return
         gradient = info["gradient"]
+        # Compute projected gradient
+        grad_proj = gradient.copy()
+        lower = bounds[:, 0]
+        upper = bounds[:, 1]
+        # Identify parameters effectively at their bounds in a scale-aware way.
+        tol = 1e-8
+
+        # Check lower bounds
+        lower_finite = np.isfinite(lower)
+        scale_lower = np.ones_like(lower)
+        scale_lower[lower_finite] = np.maximum(1.0, np.abs(lower[lower_finite]))
+        at_lower = np.zeros_like(lower, dtype=bool)
+        at_lower[lower_finite] = np.isclose(
+            _current_pars[lower_finite],
+            lower[lower_finite],
+            rtol=tol,
+            atol=tol * scale_lower[lower_finite],
+        ) | (_current_pars[lower_finite] < lower[lower_finite])
+
+        # Check upper bounds
+        upper_finite = np.isfinite(upper)
+        scale_upper = np.ones_like(upper)
+        scale_upper[upper_finite] = np.maximum(1.0, np.abs(upper[upper_finite]))
+        at_upper = np.zeros_like(upper, dtype=bool)
+        at_upper[upper_finite] = np.isclose(
+            _current_pars[upper_finite],
+            upper[upper_finite],
+            rtol=tol,
+            atol=tol * scale_upper[upper_finite],
+        ) | (_current_pars[upper_finite] > upper[upper_finite])
+
+        mask_lower = at_lower & (gradient > 0)
+        mask_upper = at_upper & (gradient < 0)
+        grad_proj[mask_lower | mask_upper] = 0.0
+
         print(
             "{:5d} {:6d} {:12.7f} {:12.7f} {:12.4e} {:12.4e} {:12.7f}".format(
                 opt_result.nit,
@@ -134,8 +173,7 @@ def optimize_pro_model(
                 info["ekld"],
                 info["kld"],
                 -info["constraint"],
-                # TODO: projected gradient may be better.
-                np.linalg.norm(gradient) / np.sqrt(len(gradient)),
+                np.linalg.norm(grad_proj) / np.sqrt(len(grad_proj)),
                 info["time"],
             )
         )
@@ -144,10 +182,6 @@ def optimize_pro_model(
                 "Encountered non-finite gradient. "
                 "Please report this issue on https://github.com/theochem/denspart/issues"
             )
-
-    # The errstate is changed to detect potentially nasty numerical issues.
-    # Optimize parameters within the bounds.
-    bounds = np.concatenate([fn.bounds for fn in pro_model.fns])
 
     optresult = minimize(
         cost_grad,
