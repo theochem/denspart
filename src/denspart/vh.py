@@ -137,17 +137,17 @@ def optimize_pro_model(
         upper = bounds[:, 1]
         # Identify parameters effectively at their bounds in a scale-aware way.
         tol = 1e-8
-        
+
         # Check lower bounds
         lower_finite = np.isfinite(lower)
         scale_lower = np.ones_like(lower)
         scale_lower[lower_finite] = np.maximum(1.0, np.abs(lower[lower_finite]))
         at_lower = np.zeros_like(lower, dtype=bool)
         at_lower[lower_finite] = np.isclose(
-            _current_pars[lower_finite], 
-            lower[lower_finite], 
-            rtol=tol, 
-            atol=tol * scale_lower[lower_finite]
+            _current_pars[lower_finite],
+            lower[lower_finite],
+            rtol=tol,
+            atol=tol * scale_lower[lower_finite],
         ) | (_current_pars[lower_finite] < lower[lower_finite])
 
         # Check upper bounds
@@ -156,10 +156,10 @@ def optimize_pro_model(
         scale_upper[upper_finite] = np.maximum(1.0, np.abs(upper[upper_finite]))
         at_upper = np.zeros_like(upper, dtype=bool)
         at_upper[upper_finite] = np.isclose(
-            _current_pars[upper_finite], 
-            upper[upper_finite], 
-            rtol=tol, 
-            atol=tol * scale_upper[upper_finite]
+            _current_pars[upper_finite],
+            upper[upper_finite],
+            rtol=tol,
+            atol=tol * scale_upper[upper_finite],
         ) | (_current_pars[upper_finite] > upper[upper_finite])
 
         mask_lower = at_lower & (gradient > 0)
