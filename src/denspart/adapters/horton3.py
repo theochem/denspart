@@ -117,15 +117,15 @@ def _setup_grid(atnums, atcoords, nrad, nang, store_atgrids):
     oned = GaussChebyshev(nrad)
     rgrid = BeckeRTransform(1e-4, 1.5).transform_1d_grid(oned)
     grid = MolGrid.from_size(atnums, atcoords, nang, rgrid, becke, store=store_atgrids)
-    
+
     # Remove grid points with zero weight
     if not store_atgrids:
         keep = grid.weights > 1e-15
-        grid = Grid(grid.points[keep],grid.weights[keep])
+        grid = Grid(grid.points[keep], grid.weights[keep])
     assert np.isfinite(grid.points).all()
     assert np.isfinite(grid.weights).all()
     assert (grid.weights >= 0).all()
-   
+
     return grid
 
 
